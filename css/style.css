@@ -110,7 +110,7 @@ main { max-width: 1320px; margin: 0 auto; padding: 24px 20px 60px; }
 .btn.danger:hover { border-color: var(--crit); }
 .btn:disabled { opacity: .45; cursor: default; }
 .file-btn input { display: none; }
-select, input[type=text], input[type=number] {
+select, input[type=text], input[type=password], input[type=number] {
   font: inherit; color: var(--text); background: var(--panel-2);
   border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; min-width: 0;
 }
@@ -249,6 +249,11 @@ tbody tr:hover { background: var(--panel-2); }
 .switch:checked { background: var(--accent); }
 .switch:checked::after { transform: translateX(18px); }
 .test-out { margin-top: 10px; font-size: 13px; }
+.settings-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 14px; }
+.ai-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 650; cursor: help;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
 .test-out:empty { display: none; }
 .test-out .ok { color: var(--ok); } .test-out .bad { color: var(--crit); }
 .test-out ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }

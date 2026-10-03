@@ -3,8 +3,8 @@
  * Smart sensor classifier.
  * Takes whatever the ESP32 sends (flat JSON, nested JSON, arrays of {name,value,unit}
  * objects, or plain "key: value" text) and turns it into typed, grouped readings.
- * Classification order: manual override → strong key match → unit → weak key match
- * → value shape (boolean → digital) → unclassified.
+ * Classification order: manual override → AI (Gemini) result → strong key match → unit
+ * → weak key match → value shape (boolean → digital) → unclassified.
  */
 const Classifier = (() => {
   const GROUPS = {
@@ -174,8 +174,9 @@ const Classifier = (() => {
     return obj;
   }
 
-  /* Parse any payload into [{key, name, type, autoType, group, value, unit, kind}] */
-  function parse(payload, overrides = {}) {
+  /* Parse any payload into [{key, name, type, autoType, ruleType, source, group, value, unit, kind}].
+   * autoType = AI type if known, else the rule-based type; source = 'manual' | 'ai' | 'rules'. */
+  function parse(payload, overrides = {}, aiTypes = {}) {
     if (typeof payload === 'string') {
       try { payload = JSON.parse(payload); } catch { payload = parseText(payload); }
     }
@@ -196,10 +197,12 @@ const Classifier = (() => {
       const suffixUnit = leaf.includes('_') ? SUFFIX_UNITS[lastWord] : undefined;
       const unitRaw = unitHint || v.unit || '';
       const texts = [typeHint && norm(typeHint), leaf, full].filter(Boolean);
-      const auto = classify(texts, unitRaw || (suffixUnit && lastWord), v.kind);
+      const rule = classify(texts, unitRaw || (suffixUnit && lastWord), v.kind);
+      const auto = BY_ID[aiTypes[key]] || rule;
       const T = overrides[key] ? byId(overrides[key]) : auto;
+      const source = overrides[key] ? 'manual' : BY_ID[aiTypes[key]] ? 'ai' : 'rules';
       const unit = unitRaw ? (PRETTY_UNIT[unitRaw.toLowerCase()] || unitRaw) : (suffixUnit || (v.kind === 'bool' ? '' : T.unit));
-      out.push({ key, name: humanize(clean), type: T.id, autoType: auto.id, group: T.group, value: v.value, unit, kind: v.kind });
+      out.push({ key, name: humanize(clean), type: T.id, autoType: auto.id, ruleType: rule.id, source, group: T.group, value: v.value, unit, kind: v.kind });
     }
 
     function walk(node, path) {

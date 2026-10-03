@@ -51,6 +51,17 @@ Each value is classified from its key name, its unit (either the key suffix like
 
 To add a sensor, add another `"key": value` to the firmware's JSON. It will appear in the dashboard automatically. If a guess is wrong, override it under **Settings → Detected sensors**.
 
+## AI classification (Google Gemini)
+
+The built-in rules handle common sensor names. For anything else (part numbers like `MQ135`, abbreviations, other languages), the app can ask **Google Gemini** to classify each sensor.
+
+- **What is sent:** only the **first reading of each new sensor**: its data key, display name, value, unit and the rule-based guess. Sensors that appear in the same payload are sent together in one request. Camera images and reading history are never sent.
+- **When:** once per sensor. The answer is saved in this browser and used from then on. If Gemini can't be reached, the built-in rules stay in use and the sensor is retried after a minute.
+- **Priority:** your manual choice under **Settings → Detected sensors** → Gemini's answer → built-in rules. Sensors classified by Gemini show an **AI %** badge (hover it to see Gemini's reason).
+- **Setup:** in **Settings → AI classification**, turn it on and paste an API key from [Google AI Studio](https://aistudio.google.com/apikey). Use **Test Gemini** to check the key. The model is configurable (default `gemini-2.5-flash`). **Re-classify all sensors** sends every sensor again, for example after you change the model.
+
+> **API key security.** This app runs entirely in the browser, so a key typed into Settings is stored in that browser's local storage and is visible to anyone using it. That is fine for a local, single-user setup. **Don't** put a key into a shared or public deployment, such as the GitHub Pages site. Instead, run a small server-side proxy that adds the `x-goog-api-key` header and forwards requests to `https://generativelanguage.googleapis.com/v1beta`, then enter the proxy's URL as the **Endpoint** and leave the key empty. In Google Cloud, restrict the key to the Generative Language API.
+
 ## Demo mode
 
 - **Random**: realistic drifting values with occasional spikes (an object comes close, a loud noise, muddy water, a pH swing).

@@ -190,6 +190,24 @@
       </section>
 
       <section class="panel wide">
+        <h3>AI classification (Google Gemini)</h3>
+        <p class="muted small">The first reading of every new sensor (its data key, name, value and unit) is sent to Gemini, which picks the sensor type. Built-in rules are used instantly and whenever Gemini is unavailable. Manual choices under <b>Detected sensors</b> always win.</p>
+        <label class="switch-row"><span><b>Classify new sensors with Gemini</b><small>Each sensor is sent once; the answer is remembered in this browser.</small></span><input type="checkbox" class="switch" id="s-aiEnabled"></label>
+        <div class="settings-cols">
+          <label class="field">Gemini API key<input type="password" id="s-aiApiKey" placeholder="From Google AI Studio" autocomplete="off" spellcheck="false"></label>
+          <label class="field">Model<input type="text" id="s-aiModel" placeholder="gemini-2.5-flash" autocomplete="off" spellcheck="false"></label>
+          <label class="field">Endpoint / proxy (optional)<input type="text" id="s-aiEndpoint" placeholder="https://generativelanguage.googleapis.com/v1beta" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <small class="muted">The key is stored only in this browser's local storage and sent only to the endpoint above. On a shared or public deployment, don't put a key here: point the endpoint at a server-side proxy that adds the key, and leave the key empty.</small>
+        <div class="test-out" id="s-aiStatus"></div>
+        <div class="row">
+          <button class="btn sm" id="t-ai">Test Gemini</button>
+          <button class="btn ghost sm" id="s-aiReclassify">Re-classify all sensors</button>
+        </div>
+        <div class="test-out" id="t-ai-out"></div>
+      </section>
+
+      <section class="panel wide">
         <div class="panel-head"><h3>Detected sensors</h3><small class="muted">Auto-classified from the data key names, units and values. Override if a guess is wrong.</small></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Data key</th><th>Name</th><th>Classified as</th><th>Group</th><th class="num">Last value</th></tr></thead>
@@ -231,6 +249,7 @@
 <script src="js/db.js"></script>
 <script src="js/classifier.js"></script>
 <script src="js/demo.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

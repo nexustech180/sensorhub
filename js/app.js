@@ -16,6 +16,7 @@ const DEFAULTS = {
   camIp: '', camStream: 'http://{ip}:81/stream', camCapture: 'http://{ip}/capture',
   notify: true, browserNotify: false, sound: false, overlay: true,
   maxRecords: 50000, thresholds: {}, overrides: {},
+  aiEnabled: false, aiApiKey: '', aiModel: 'gemini-2.5-flash', aiEndpoint: '',
 };
 
 function loadJSON(key, fallback) {
@@ -39,6 +40,7 @@ const S = {
   alerts: [], unread: 0,
   total: 0, ingests: 0,
   page: 0, pollTimer: null,
+  ai: { error: '', errorNotified: 0 },
 };
 
 /* ---------------- formatting ---------------- */
@@ -118,7 +120,7 @@ async function poll() {
 }
 
 async function ingest(payload, source) {
-  const items = Classifier.parse(payload, settings.overrides);
+  const items = Classifier.parse(payload, settings.overrides, AI.types());
   if (!items.length) return;
   const ts = Date.now();
   const recs = [];
@@ -138,9 +140,13 @@ async function ingest(payload, source) {
     if (s.hist.length > 120) s.hist.shift();
     s.min = Math.min(s.min, it.value); s.max = Math.max(s.max, it.value); s.sum += it.value; s.n++;
 
+    // First reading of a sensor that has no AI classification yet → ask Gemini (manual overrides are left alone).
+    const asked = it.source === 'rules' && AI.submit(it);
+    if (asked) renderAiStatus();
     if (!known.has(it.key)) {
       known.add(it.key); saveJSON(KEY_KNOWN, [...known]);
-      notify('info', 'New sensor detected', `${it.name} → ${typeLabel(it.type)} (${groupLabel(it.group)})`, it.key);
+      notify('info', 'New sensor detected', `${it.name} → ${typeLabel(it.type)} (${groupLabel(it.group)})` +
+        (asked ? ' · asking Gemini to confirm…' : ''), it.key);
     }
     if (RANK[status] > RANK[prev]) {
       notify(status, `${it.name} ${status === 'crit' ? 'CRITICAL' : 'warning'}`,
@@ -663,8 +669,78 @@ async function clearDb() {
   notify('info', 'Database cleared', 'All stored readings were deleted.');
 }
 
+/* ---------------- AI classification ---------------- */
+function aiConfig() {
+  return { enabled: settings.aiEnabled, apiKey: settings.aiApiKey, model: settings.aiModel,
+    endpoint: settings.aiEndpoint || AI.DEFAULT_ENDPOINT };
+}
+
+function onAiResult(entries, error) {
+  if (error) {
+    S.ai.error = error.message;
+    // One notification per 5 minutes is enough; the rule-based type stays in use meanwhile.
+    if (Date.now() - S.ai.errorNotified > 300000) {
+      S.ai.errorNotified = Date.now();
+      notify('warn', 'AI classification failed', error.message + ' — using built-in rules for now.');
+    }
+  } else {
+    S.ai.error = '';
+  }
+  for (const e of entries) {
+    const s = S.sensors.get(e.key);
+    if (!s) continue;
+    const before = s.type;
+    s.autoType = e.type;
+    if (!settings.overrides[e.key]) {
+      const T = Classifier.byId(e.type);
+      s.type = T.id; s.group = T.group;
+    }
+    S.version++;
+    if (s.type !== before) {
+      notify('info', 'AI reclassified sensor', `${s.name}: ${typeLabel(before)} → ${typeLabel(s.type)} (${groupLabel(s.group)}). ${e.reason}`, e.key);
+    }
+  }
+  renderAiStatus();
+  refreshViews();
+  if (S.route === 'settings') { renderSensorTable(true); renderThresholds(); }
+}
+
+function renderAiStatus() {
+  const el = $('#s-aiStatus');
+  if (!el) return;
+  const n = Object.keys(AI.types()).length;
+  if (!settings.aiEnabled) el.innerHTML = '<span class="muted">Off — sensors are classified by built-in rules only.</span>';
+  else if (!AI.ready()) el.innerHTML = '<span class="bad">Enter a Gemini API key (or a proxy endpoint) to start.</span>';
+  else el.innerHTML = `<span class="ok">✓ On</span> <span class="muted">· ${n} sensor${n === 1 ? '' : 's'} classified by AI` +
+    (AI.pending() ? ` · ${AI.pending()} waiting` : '') + '</span>' +
+    (S.ai.error ? `<div class="bad">Last error: ${esc(S.ai.error)}</div>` : '');
+}
+
+async function testAi() {
+  const out = $('#t-ai-out');
+  if (!AI.ready()) { out.innerHTML = '<span class="bad">Turn AI classification on and enter an API key first.</span>'; return; }
+  out.textContent = `Asking ${settings.aiModel} …`;
+  try {
+    const list = await AI.test();
+    out.innerHTML = `<span class="ok">✓ Gemini answered</span><ul>${list.map(e =>
+      `<li><code>${esc(e.key)}</code> → <b>${esc(typeLabel(e.type))}</b> (${Math.round(e.confidence * 100)}%) <span class="muted">${esc(e.reason)}</span></li>`).join('')}</ul>`;
+  } catch (e) {
+    out.innerHTML = `<span class="bad">✕ ${esc(e.message)}</span>`;
+  }
+}
+
+function reclassifyAll() {
+  AI.forget();
+  S.ai.error = '';
+  S.version++;
+  renderAiStatus();
+  renderSensorTable(true);
+  notify('info', 'AI re-classification started', 'Every sensor will be sent to Gemini again on its next reading.');
+}
+
 /* ---------------- settings ---------------- */
-const FIELDS = ['demo', 'demoCam', 'demoPattern', 'demoVideoUrl', 'mcuIp', 'mcuPath', 'pollMs', 'camIp', 'camStream', 'camCapture', 'notify', 'browserNotify', 'sound', 'maxRecords'];
+const FIELDS = ['demo', 'demoCam', 'demoPattern', 'demoVideoUrl', 'mcuIp', 'mcuPath', 'pollMs', 'camIp', 'camStream', 'camCapture', 'notify', 'browserNotify', 'sound', 'maxRecords',
+  'aiEnabled', 'aiApiKey', 'aiModel', 'aiEndpoint'];
 
 function fillSettings() {
   for (const f of FIELDS) {
@@ -672,6 +748,7 @@ function fillSettings() {
     if (el.type === 'checkbox') el.checked = !!settings[f]; else el.value = settings[f] ?? '';
   }
   updateVideoInfo();
+  renderAiStatus();
   renderSensorTable(true);
   renderThresholds();
 }
@@ -691,6 +768,7 @@ function applySettings(changed) {
     updateSourceButton();
   }
   if (changed === 'demo' && !settings.demo) setStatus('mcu', 'idle');
+  if (changed.startsWith('ai')) { S.ai.error = ''; renderAiStatus(); }
   if (changed === 'demo') notify('info', settings.demo ? 'Demo mode on' : 'Demo mode off',
     settings.demo ? 'Showing simulated sensor data and a looping video.' : 'Reading from the configured ESP32 boards.');
 }
@@ -701,6 +779,7 @@ function onSettingChange(e) {
   let v = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value.trim();
   if (f === 'pollMs') v = Math.max(250, v || 2000);
   if (f === 'maxRecords') v = Math.max(1000, v || 50000);
+  if (f === 'aiModel') v = v.replace(/^models\//, '') || DEFAULTS.aiModel;
   settings[f] = v;
   if (f === 'browserNotify' && v && 'Notification' in window && Notification.permission !== 'granted') {
     Notification.requestPermission().then(p => {
@@ -761,11 +840,17 @@ function renderSensorTable(force) {
     <tr data-key="${esc(s.key)}">
       <td><code>${esc(s.key)}</code></td>
       <td>${esc(s.name)}</td>
-      <td><select data-override="${esc(s.key)}"><option value="">Auto (${esc(typeLabel(s.autoType))})</option>${opts}</select></td>
+      <td><select data-override="${esc(s.key)}"><option value="">Auto (${esc(typeLabel(s.autoType))})</option>${opts}</select>${aiBadge(s.key)}</td>
       <td><span class="gtag" style="--g:${groupColor(s.group)}">${esc(groupLabel(s.group))}</span></td>
       <td class="num">${fmtVal(s.value, s.kind)} ${esc(s.unit)}</td>
     </tr>`).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No sensors detected yet.</td></tr>';
   for (const sel of $$('select[data-override]', body)) sel.value = settings.overrides[sel.dataset.override] || '';
+}
+
+function aiBadge(key) {
+  const r = AI.get(key);
+  if (!r) return '';
+  return ` <span class="ai-tag" title="${esc(`${r.reason} (${r.model})`)}">AI ${Math.round(r.confidence * 100)}%</span>`;
 }
 
 function onOverride(e) {
@@ -813,7 +898,7 @@ async function testMcu() {
   out.textContent = 'Connecting to ' + mcuUrl() + ' …';
   try {
     const payload = await fetchPayload(mcuUrl(), 5000);
-    const items = Classifier.parse(payload, settings.overrides);
+    const items = Classifier.parse(payload, settings.overrides, AI.types());
     out.innerHTML = `<span class="ok">✓ Connected — ${items.length} reading${items.length === 1 ? '' : 's'} found</span>` +
       (items.length ? `<ul>${items.map(i => `<li><b>${esc(i.name)}</b> = ${fmtVal(i.value, i.kind)} ${esc(i.unit)} → ${esc(typeLabel(i.type))} (${esc(groupLabel(i.group))})</li>`).join('')}</ul>`
         : '<div class="muted">The board answered but no numeric values were found in the response.</div>');
@@ -897,11 +982,14 @@ function bind() {
   $('#s-thReset').onclick = () => { settings.thresholds = {}; saveSettings(); renderThresholds(); };
   $('#t-mcu').onclick = testMcu;
   $('#t-cam').onclick = testCam;
+  $('#t-ai').onclick = testAi;
+  $('#s-aiReclassify').onclick = reclassifyAll;
 
   window.addEventListener('resize', () => { if (S.route === 'db') { $('#groups').dataset.v = ''; renderDb(); } });
 }
 
 async function init() {
+  AI.init(aiConfig, onAiResult);
   await DB.open();
   S.total = await DB.count('readings');
   await seedFromDb();
