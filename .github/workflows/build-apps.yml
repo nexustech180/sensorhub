@@ -1,0 +1,127 @@
+name: Build apps
+
+# Builds Gold Var Sensor Hub for Android (.apk, Capacitor) and Windows (.exe, Electron)
+# from the same dashboard (index.html, css/, js/).
+# - Every push to main / android-apk: both files are attached to the workflow run (Artifacts).
+# - Pushing a tag like v0.1.0: both files are also published on a GitHub Release.
+# The Gemini key comes from the repository secret GEMINI_API_KEY (never stored in the code).
+on:
+  push:
+    branches: [main, android-apk]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the Release on tag pushes
+
+jobs:
+  apk:
+    name: Android (.apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Copy the dashboard into www/
+        run: npm run web
+
+      - name: Insert the Gemini key (repository secret)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/insert-key.js www
+
+      - name: Create the Android project
+        run: npx cap add android
+
+      - name: Allow plain HTTP to the ESP32 on the local network
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'usesCleartextTraffic' "$M" || sed -i 's/<application\b/<application android:usesCleartextTraffic="true"/' "$M"
+          grep -q 'usesCleartextTraffic="true"' "$M"
+          echo "Cleartext HTTP enabled in $M"
+
+      - name: Sync web files and settings
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk GoldVarSensorHub.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GoldVarSensorHub-apk
+          path: GoldVarSensorHub.apk
+
+  exe:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Copy the dashboard into desktop/www/
+        shell: bash
+        run: |
+          npm run web
+          rm -rf desktop/www
+          cp -r www desktop/www
+
+      - name: Insert the Gemini key (repository secret)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/insert-key.js desktop/www
+
+      - name: Install Electron
+        working-directory: desktop
+        run: npm install
+
+      - name: Build EXE
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # not code-signed
+        run: npm run dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GoldVarSensorHub-exe
+          path: desktop/dist/GoldVarSensorHub.exe
+
+  release:
+    name: Publish Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [apk, exe]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            GoldVarSensorHub.apk
+            GoldVarSensorHub.exe
+          body: |
+            Gold Var Sensor Hub - dashboard for the GOLD-VAR illegal-mining detection system.
+
+            **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked.
+            **Windows:** download `GoldVarSensorHub.exe` and run it (no installation needed). If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
+
+            Connect the phone or PC to the same WiFi or hotspot as the ESP32, turn Demo mode off in Settings and enter the IP shown on the Mega's LCD (page 4).

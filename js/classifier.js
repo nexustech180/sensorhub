@@ -99,6 +99,8 @@ const Classifier = (() => {
     { id: 'magnetic', label: 'Magnetic / Hall', group: 'digital', unit: '', keys: [/hall/, /magnet/, /reed/], weak: [/door/] },
     { id: 'relay', label: 'Relay / Output', group: 'digital', unit: '', keys: [/relay/, /(^|_)led(_|$)/, /buzzer/, /pump/, /valve/, /(^|_)fan(_|$)/] },
 
+    { id: 'link', label: 'Link / Online', group: 'system', unit: '',
+      keys: [/(^|_)online(_|$)/, /(^|_)link(_|$)/, /heartbeat/] },
     { id: 'system', label: 'Device Stats', group: 'system', unit: '',
       keys: [/rssi/, /uptime/, /heap/, /(^|_)mem/, /wifi/, /millis/, /(^|_)cpu/, /free_?ram/], weak: [/signal/], units: ['dbm'] },
 
@@ -166,15 +168,31 @@ const Classifier = (() => {
     return kind === 'bool' ? BY_ID.digital : BY_ID.other;
   }
 
+  // "name=value[unit][!status]" or "Name: value unit". Values may be numbers or ON/OFF-style
+  // words; "!ok" / "!warning" / "!danger" carries the device's own alarm level.
+  // The unit must end at a word boundary so "a=5 node3_vib=1" doesn't read "node" as a unit.
+  // If a name appears twice, the first one wins (callers put the newest data first).
+  const TEXT_RE = /([A-Za-z][\w .-]*?)\s*[:=]\s*(-?\d+(?:\.\d+)?|(?:on|off|true|false|yes|no|high|low|detected|clear|active|inactive|open|closed)\b)\s*([a-zA-Z%°µ/²]*)(?![\w=:])(?:\s*!([a-zA-Z]+))?/gi;
   function parseText(txt) {
     const obj = {};
-    const re = /([A-Za-z][\w .-]*?)\s*[:=]\s*(-?\d+(?:\.\d+)?)\s*([a-zA-Z%°/]*)/g;
+    const re = new RegExp(TEXT_RE.source, TEXT_RE.flags);
     let m;
-    while ((m = re.exec(txt))) obj[m[1].trim()] = m[3] ? { value: +m[2], unit: m[3] } : +m[2];
+    while ((m = re.exec(txt))) {
+      const key = m[1].trim();
+      if (key in obj) continue;
+      const num = /^-?\d/.test(m[2]);
+      obj[key] = { value: num ? +m[2] : m[2] };
+      if (m[3]) obj[key].unit = m[3];
+      if (m[4]) obj[key].status = m[4];
+    }
     return obj;
   }
 
-  /* Parse any payload into [{key, name, type, autoType, group, value, unit, kind}] */
+  // Status decided by the device itself (e.g. the GOLD-VAR Mega's WARNING/DANGER).
+  const DEVICE_STATUS = { ok: 'ok', normal: 'ok', 0: 'ok', warn: 'warn', warning: 'warn', 1: 'warn', crit: 'crit', critical: 'crit', danger: 'crit', 2: 'crit' };
+  const deviceStatus = s => (s === undefined || s === null) ? undefined : DEVICE_STATUS[String(s).toLowerCase()];
+
+  /* Parse any payload into [{key, name, type, autoType, group, value, unit, kind, devStatus?}] */
   function parse(payload, overrides = {}) {
     if (typeof payload === 'string') {
       try { payload = JSON.parse(payload); } catch { payload = parseText(payload); }
@@ -182,7 +200,7 @@ const Classifier = (() => {
     const out = [];
     const seen = new Set();
 
-    function emit(path, raw, unitHint, typeHint) {
+    function emit(path, raw, unitHint, typeHint, devStatus) {
       const v = toValue(raw);
       if (!v) return;
       const key = path.join('.');
@@ -196,10 +214,15 @@ const Classifier = (() => {
       const suffixUnit = leaf.includes('_') ? SUFFIX_UNITS[lastWord] : undefined;
       const unitRaw = unitHint || v.unit || '';
       const texts = [typeHint && norm(typeHint), leaf, full].filter(Boolean);
-      const auto = classify(texts, unitRaw || (suffixUnit && lastWord), v.kind);
+      // A "type" hint that is exactly one of our type ids (e.g. from the gateway or the AI helper) is used as-is
+      const hinted = typeHint && BY_ID[norm(typeHint)];
+      const auto = hinted || classify(texts, unitRaw || (suffixUnit && lastWord), v.kind);
       const T = overrides[key] ? byId(overrides[key]) : auto;
       const unit = unitRaw ? (PRETTY_UNIT[unitRaw.toLowerCase()] || unitRaw) : (suffixUnit || (v.kind === 'bool' ? '' : T.unit));
-      out.push({ key, name: humanize(clean), type: T.id, autoType: auto.id, group: T.group, value: v.value, unit, kind: v.kind });
+      const item = { key, name: humanize(clean), type: T.id, autoType: auto.id, group: T.group, value: v.value, unit, kind: v.kind };
+      const ds = deviceStatus(devStatus);
+      if (ds) item.devStatus = ds;
+      out.push(item);
     }
 
     function walk(node, path) {
@@ -221,7 +244,7 @@ const Classifier = (() => {
       if (typeof node === 'object') {
         const valKey = ['value', 'val', 'reading'].find(k => k in node && typeof node[k] !== 'object');
         if (valKey) {
-          emit(path.length ? path : ['value'], node[valKey], node.unit || node.units, node.type || node.kind);
+          emit(path.length ? path : ['value'], node[valKey], node.unit || node.units, node.type || node.kind, node.status);
           return;
         }
         for (const [k, v] of Object.entries(node)) {
@@ -252,5 +275,5 @@ const Classifier = (() => {
     return { status: 'ok', reason: 'within normal range' };
   }
 
-  return { GROUPS, GROUP_ORDER, TYPES, byId, parse, evaluate };
+  return { GROUPS, GROUP_ORDER, TYPES, byId, parse, parseText, evaluate };
 })();

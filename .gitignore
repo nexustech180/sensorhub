@@ -1,2 +1,8 @@
 .claude/
 _testsnap.png
+node_modules/
+www/
+android/
+desktop/node_modules/
+desktop/www/
+desktop/dist/
