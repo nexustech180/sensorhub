@@ -4,9 +4,9 @@ A dashboard app for the GOLD-VAR system: an **ESP32 gateway** (or sensor board) 
 
 ## Install it
 
-**Android:** download **`GoldVarSensorHub.apk`** from this repository's **Releases** page, open it on the phone, and allow **Install unknown apps** when asked. The phone must be on the same WiFi or hotspot as the ESP32.
+**Android:** download **`GoldVarSensorHub.apk`** from this repository's **Releases** page, open it on the phone, and allow **Install unknown apps** when asked. One APK works on 32-bit and 64-bit phones. The phone must be on the same WiFi or hotspot as the ESP32.
 
-**Windows:** download **`GoldVarSensorHub.exe`** from **Releases** and run it; no installation is needed. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
+**Windows:** download **`GoldVarSensorHub-64bit.exe`** (almost all PCs) or **`GoldVarSensorHub-32bit.exe`** (32-bit Windows) from **Releases** and run it; no installation is needed. The 32-bit build uses Electron 43, the newest Electron with 32-bit Windows support. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
 
 The app starts in **Demo mode**, so you can see it working with no hardware.
 

@@ -50,6 +50,11 @@
     border-radius: 12px; padding: 13px 16px; font-size: 16px;
   }
   .btn:hover { filter: brightness(1.06); }
+  .btn.alt { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); font-weight: 600; margin-top: 8px; }
+  .btn.alt:hover { border-color: var(--accent); filter: none; }
+  .btn small { font-weight: 500; opacity: .85; }
+  .hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+  .hint strong { color: var(--text); }
   .btn:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   .meta { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 1.4em; }
   .release-line { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
@@ -96,7 +101,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
             Android
           </h2>
-          <p>For phones and tablets (Android 7 or newer).</p>
+          <p>For phones and tablets (Android 7 or newer). One file works on both 32-bit and 64-bit phones.</p>
           <a class="btn" id="dl-apk" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub.apk">Download .apk</a>
           <div class="meta" id="meta-apk"></div>
         </div>
@@ -105,9 +110,13 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
             Windows
           </h2>
-          <p>For PCs and laptops. No installation needed.</p>
-          <a class="btn" id="dl-exe" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub.exe">Download .exe</a>
+          <p>For PCs and laptops (Windows 10 or newer). No installation needed.</p>
+          <div id="win-buttons">
+            <a class="btn" id="dl-exe64" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub-64bit.exe">Download 64-bit .exe <small>(most PCs)</small></a>
+            <a class="btn alt" id="dl-exe32" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub-32bit.exe">Download 32-bit .exe</a>
+          </div>
           <div class="meta" id="meta-exe"></div>
+          <p class="hint" id="win-hint">Not sure? On the PC open <strong>Settings → System → About</strong> and look at <strong>System type</strong>.</p>
         </div>
       </div>
       <p class="release-line" id="release-line">Always the newest version · <a href="https://github.com/nexustech180/sensorhub/releases">all releases</a> · <a href="app/">try the web demo</a></p>
@@ -119,7 +128,7 @@
         <div class="card">
           <h3>Android</h3>
           <ol>
-            <li>Tap <strong>Download .apk</strong> on the phone.</li>
+            <li>Tap <strong>Download .apk</strong> on the phone. Updating from version 0.1.0? Uninstall the old app once first; later updates install over it.</li>
             <li>Open the downloaded file. If asked, allow <strong>Install unknown apps</strong> for your browser or file manager.</li>
             <li>Open <strong>Gold Var Sensor Hub</strong>. It starts in demo mode, so you see data right away.</li>
           </ol>
@@ -127,7 +136,7 @@
         <div class="card">
           <h3>Windows</h3>
           <ol>
-            <li>Click <strong>Download .exe</strong> and run the file.</li>
+            <li>Click <strong>Download 64-bit .exe</strong> (or the 32-bit one on 32-bit Windows) and run the file.</li>
             <li>If Windows SmartScreen warns, click <strong>More info → Run anyway</strong>. The app is safe but isn't code-signed.</li>
             <li>The first start takes a few seconds while it unpacks.</li>
           </ol>
@@ -167,6 +176,29 @@
   </div>
 
 <script>
+  // On a 32-bit Windows PC, put the 32-bit download first. Detection is best-effort;
+  // both buttons are always shown.
+  (async () => {
+    const ua = navigator.userAgent;
+    if (!/Windows/i.test(ua)) return;
+    let bits = /Win64|WOW64|x64|amd64/i.test(ua) ? '64' : '32';
+    try {
+      const h = await navigator.userAgentData?.getHighEntropyValues?.(['bitness']);
+      if (h?.bitness) bits = h.bitness;
+    } catch { /* not available: keep the user-agent guess */ }
+    const hint = document.getElementById('win-hint');
+    if (bits === '32') {
+      const a64 = document.getElementById('dl-exe64'), a32 = document.getElementById('dl-exe32');
+      a32.classList.remove('alt'); a64.classList.add('alt');
+      a32.innerHTML = 'Download 32-bit .exe <small>(this PC)</small>';
+      a64.textContent = 'Download 64-bit .exe';
+      a32.parentNode.insertBefore(a32, a64);
+      hint.innerHTML = 'This PC looks like <strong>32-bit Windows</strong>. Not sure? Check <strong>Settings → System → About → System type</strong>.';
+    } else {
+      hint.innerHTML = 'This PC looks like <strong>64-bit Windows</strong>. Not sure? Check <strong>Settings → System → About → System type</strong>.';
+    }
+  })();
+
   // Fill in the newest version and file sizes from GitHub (the buttons work without this).
   (async () => {
     try {
@@ -175,9 +207,13 @@
       const rel = await res.json();
       const mb = n => (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB';
       const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-      for (const [ext, id] of [['apk', 'meta-apk'], ['exe', 'meta-exe']]) {
-        const a = (rel.assets || []).find(x => x.name.toLowerCase().endsWith('.' + ext));
-        if (a) document.getElementById(id).textContent = `${rel.tag_name} · ${mb(a.size)}${date ? ' · ' + date : ''}`;
+      const asset = name => (rel.assets || []).find(x => x.name === name);
+      const apk = asset('GoldVarSensorHub.apk');
+      if (apk) document.getElementById('meta-apk').textContent = `${rel.tag_name} · ${mb(apk.size)}${date ? ' · ' + date : ''}`;
+      const x64 = asset('GoldVarSensorHub-64bit.exe'), x86 = asset('GoldVarSensorHub-32bit.exe');
+      if (x64 || x86) {
+        const sizes = [x64 && `64-bit ${mb(x64.size)}`, x86 && `32-bit ${mb(x86.size)}`].filter(Boolean).join(', ');
+        document.getElementById('meta-exe').textContent = `${rel.tag_name} · ${sizes}${date ? ' · ' + date : ''}`;
       }
       const line = document.getElementById('release-line');
       line.firstChild.textContent = `Newest version: ${rel.tag_name}${date ? ' (' + date + ')' : ''} · `;
