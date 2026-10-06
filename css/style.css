@@ -250,6 +250,10 @@ tbody tr:hover { background: var(--panel-2); }
 .switch:checked::after { transform: translateX(18px); }
 .test-out { margin-top: 10px; font-size: 13px; }
 .test-out:empty { display: none; }
+.ai-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 650; cursor: help; white-space: nowrap;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
 .test-out .ok { color: var(--ok); } .test-out .bad { color: var(--crit); }
 .test-out ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
 .test-out img { max-width: 100%; border-radius: 8px; margin-top: 8px; }

@@ -1,7 +1,7 @@
 'use strict';
 /*
  * Optional AI helper (Google Gemini, free tier) for data the built-in parser can't read.
- * The key comes from js/ai-config.js. Calls go straight to Google with fetch; no
+ * The key comes from js/ai-config.js (filled in at build time from the GEMINI_API_KEY secret). Calls go straight to Google with fetch; no
  * third-party script is loaded.
  *
  * Only two kinds of things are ever sent:
@@ -106,8 +106,13 @@ const AiAssist = (() => {
       type: 'object', additionalProperties: false, required: ['names', 'lines'],
       properties: {
         names: { type: 'array', items: {
-          type: 'object', additionalProperties: false, required: ['id', 'type'],
-          properties: { id: { type: 'string' }, type: { type: 'string', enum: ids } },
+          type: 'object', additionalProperties: false, required: ['id', 'type', 'confidence', 'reason'],
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string', enum: ids },
+            confidence: { type: 'integer' },
+            reason: { type: 'string' },
+          },
         } },
         lines: { type: 'array', items: {
           type: 'object', additionalProperties: false, required: ['id', 'fields'],
@@ -150,7 +155,8 @@ const AiAssist = (() => {
         lines.map(([, ex], i) => { let n = 0; return `l${i}: ${JSON.stringify(ex.replace(NUM_RE, () => `[#${n++}]`))}`; }).join('\n') + '\n';
     }
     return `Allowed sensor type ids:\n${types}\n\n<device_output>\n${data}</device_output>\n\n` +
-      'For each name (id n0, n1, ...), choose the best type id, or "other" if none fits.\n' +
+      'For each name (id n0, n1, ...), choose the best type id, or "other" if none fits. Also give confidence ' +
+      '(0-100, how sure you are) and reason (one short sentence, at most 15 words, why that type fits).\n' +
       'For each line (id l0, l1, ...), list every reading it reports. A reading takes its value either from a numbered ' +
       'placeholder (source "number" with its number_index; constant 0) or is a fixed fact stated by the words ' +
       '(source "constant": 1 for on/detected/active/open, 0 for off/clear/closed; number_index -1). ' +
@@ -171,7 +177,13 @@ const AiAssist = (() => {
       const i = /^n(\d+)$/.exec(n.id)?.[1];
       if (i === undefined || !keys[+i]) continue;
       const key = keys[+i][0];
-      rules.keys[key] = { type: ids.has(n.type) ? n.type : 'other', at: Date.now() };
+      const conf = Number(n.confidence);
+      rules.keys[key] = {
+        type: ids.has(n.type) ? n.type : 'other',
+        confidence: Number.isFinite(conf) ? Math.round(Math.min(100, Math.max(0, conf))) : null,
+        reason: String(n.reason || '').slice(0, 140),
+        at: Date.now(),
+      };
       pendingKeys.delete(key);
       learned.push(`${key} → ${Classifier.byId(rules.keys[key].type).label}`);
     }
@@ -238,7 +250,7 @@ const AiAssist = (() => {
       const reason = (err.details || []).map(d => d.reason).find(Boolean) || err.status || '';
       if ((res.status === 400 && /API_KEY_INVALID/.test(reason + err.message)) || res.status === 401 || res.status === 403) {
         keyRejected = true;
-        throw new TransientError('The Gemini API key in js/ai-config.js was rejected or blocked. Make a new key and update that file.');
+        throw new TransientError('The Gemini API key was rejected or blocked. Make a new key, update the GEMINI_API_KEY secret and rebuild the app.');
       }
       if (res.status === 429) {
         pausedUntil = Date.now() + QUOTA_PAUSE_MS;
@@ -288,6 +300,29 @@ const AiAssist = (() => {
     }
   }
 
+  // Checks the key and model with one small real request. Nothing is learned or saved.
+  async function test() {
+    const key = cfg.apiKey();
+    if (!key) return { ok: false, message: 'No Gemini key in this build. Add the GEMINI_API_KEY secret and rebuild the app.' };
+    const now = Date.now();
+    callTimes = callTimes.filter(t => now - t < 3600 * 1000);
+    if (callTimes.length >= MAX_CALLS_PER_HOUR) {
+      return { ok: false, message: `Not tested: ${MAX_CALLS_PER_HOUR} AI requests already made this hour (limit). Try again later.` };
+    }
+    callTimes.push(now);
+    const sample = [['h2s_lvl', 12]];
+    try {
+      const answer = await callGemini(key, buildPrompt(sample, []));
+      const n = (answer.names || []).find(x => x.id === 'n0');
+      const type = n && typeIds().includes(n.type) ? n.type : 'other';
+      keyRejected = false;
+      if (Date.now() >= pausedUntil && (pendingKeys.size || pendingLines.size)) schedule(0);
+      return { ok: true, ms: Date.now() - now, message: `Gemini works (${MODEL}, ${Date.now() - now} ms). Test: "h2s_lvl = 12" → ${Classifier.byId(type).label}.` };
+    } catch (e) {
+      return { ok: false, message: e.message };
+    }
+  }
+
   const count = () => Object.keys(rules.keys).length + Object.keys(rules.lines).length;
 
   function forget() {
@@ -298,9 +333,10 @@ const AiAssist = (() => {
 
   return {
     configure: c => { cfg = { ...cfg, ...c }; },
-    keyTypes, applyLine, noteUnknownKey, noteUnknownLine, count, forget,
+    keyTypes, applyLine, noteUnknownKey, noteUnknownLine, count, forget, test,
     model: MODEL,
     isLearnedKey: k => k in rules.keys && rules.keys[k].type !== 'other',
+    keyInfo: k => (k in rules.keys && rules.keys[k].type !== 'other' ? { ...rules.keys[k] } : null),
     _setFetch: fn => { fetchFn = fn; },   // for tests
     _flushNow: flush,                     // for tests
   };
