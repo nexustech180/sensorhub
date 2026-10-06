@@ -113,9 +113,10 @@ jobs:
 
       - name: Build EXE (64-bit)
         working-directory: desktop
+        shell: bash   # PowerShell splits "-c.x.y=z" options apart
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # not code-signed
-        run: npx electron-builder --win portable --x64 --publish never -c.win.artifactName=GoldVarSensorHub-64bit.exe -c.directories.output=dist/x64
+        run: npx electron-builder --win portable --x64 --publish never --config.win.artifactName=GoldVarSensorHub-64bit.exe --config.directories.output=dist/x64
 
       # Electron 44+ has no 32-bit Windows build; 43 is the newest line that still does.
       - name: Build EXE (32-bit, Electron 43)
@@ -126,7 +127,7 @@ jobs:
         run: |
           V=$(npm view "electron@^43" version --json | node -e "console.log([].concat(JSON.parse(require('fs').readFileSync(0,'utf8'))).pop())")
           echo "32-bit build uses Electron $V"
-          npx electron-builder --win portable --ia32 --publish never -c.electronVersion="$V" -c.win.artifactName=GoldVarSensorHub-32bit.exe -c.directories.output=dist/ia32
+          npx electron-builder --win portable --ia32 --publish never --config.electronVersion="$V" --config.win.artifactName=GoldVarSensorHub-32bit.exe --config.directories.output=dist/ia32
 
       - uses: actions/upload-artifact@v7
         with:
