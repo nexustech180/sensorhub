@@ -57,9 +57,11 @@ jobs:
       - name: Set the app version (must rise with every build so Android accepts it as an update)
         run: |
           F=android/app/build.gradle
-          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" "$F"
+          V=$(node -p "require('./package.json').version")
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"$V\"/" "$F"
           grep -q "versionCode ${{ github.run_number }}" "$F"
-          echo "versionCode = ${{ github.run_number }}"
+          grep -q "versionName \"$V\"" "$F"
+          echo "versionCode = ${{ github.run_number }}, versionName = $V"
 
       - name: Build APK (unsigned release)
         working-directory: android
@@ -109,16 +111,30 @@ jobs:
         working-directory: desktop
         run: npm install
 
-      - name: Build EXE
+      - name: Build EXE (64-bit)
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # not code-signed
-        run: npm run dist
+        run: npx electron-builder --win portable --x64 --publish never -c.win.artifactName=GoldVarSensorHub-64bit.exe -c.directories.output=dist/x64
+
+      # Electron 44+ has no 32-bit Windows build; 43 is the newest line that still does.
+      - name: Build EXE (32-bit, Electron 43)
+        working-directory: desktop
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          V=$(npm view "electron@^43" version --json | node -e "console.log([].concat(JSON.parse(require('fs').readFileSync(0,'utf8'))).pop())")
+          echo "32-bit build uses Electron $V"
+          npx electron-builder --win portable --ia32 --publish never -c.electronVersion="$V" -c.win.artifactName=GoldVarSensorHub-32bit.exe -c.directories.output=dist/ia32
 
       - uses: actions/upload-artifact@v7
         with:
           name: GoldVarSensorHub-exe
-          path: desktop/dist/GoldVarSensorHub.exe
+          path: |
+            desktop/dist/x64/GoldVarSensorHub-64bit.exe
+            desktop/dist/ia32/GoldVarSensorHub-32bit.exe
+          if-no-files-found: error
 
   release:
     name: Publish Release
@@ -132,13 +148,16 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
+          fail_on_unmatched_files: true
           files: |
             GoldVarSensorHub.apk
-            GoldVarSensorHub.exe
+            GoldVarSensorHub-64bit.exe
+            GoldVarSensorHub-32bit.exe
           body: |
             Gold Var Sensor Hub - dashboard for the GOLD-VAR illegal-mining detection system.
 
-            **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked.
-            **Windows:** download `GoldVarSensorHub.exe` and run it (no installation needed). If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
+            **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked. One file works on both 32-bit and 64-bit phones.
+            **Windows:** download `GoldVarSensorHub-64bit.exe` (almost all PCs), or `GoldVarSensorHub-32bit.exe` for 32-bit Windows. Run it; no installation needed. If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
+            To check: Windows Settings → System → About → System type.
 
             Connect the phone or PC to the same WiFi or hotspot as the ESP32, turn Demo mode off in Settings and enter the IP shown on the Mega's LCD (page 4).

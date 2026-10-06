@@ -1,6 +1,6 @@
 {
   "name": "gold-var-sensor-hub",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Gold Var Sensor Hub - GOLD-VAR dashboard packaged as an Android app (Capacitor)",
   "scripts": {
