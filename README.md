@@ -92,7 +92,7 @@ How it works:
 - **Only unreadable items are sent to Google:** unreadable lines, and names that would otherwise show as *Unclassified*. Everything the reader understands never leaves the device.
 - **Each answer is saved on the device as a rule.** Lines are matched with their numbers ignored, so `NODE 3 SHAKING level 87` and `NODE 3 SHAKING level 12` share one rule. After learning, everything works instantly and offline.
 - **It needs internet only when something new appears.** It makes at most 20 requests per hour per device, and pauses 15 minutes if Google's free limit is reached.
-- **Test Gemini** (Settings → AI helper) sends one small real request and shows whether the key and model work. It learns nothing and counts toward the hourly limit.
+- **Test Gemini** (Settings → AI helper) first checks within 6 seconds that the device can reach Google (if not, it says so and points to the usual cause: a WiFi without internet, such as the ESP32's `GOLD-VAR` hotspot), then sends one small real request and shows whether the key and model work. It learns nothing and counts toward the hourly limit.
 - In **Settings → Detected sensors**, sensors typed by the AI show an **AI 92%** badge: Gemini's confidence, with its reason when you hover. Rules learned by older versions show just **AI**.
 - To reset it, use **Forget learned rules**. To correct a single sensor, use **Settings → Detected sensors**. Your manual choice always wins over the AI's.
 
