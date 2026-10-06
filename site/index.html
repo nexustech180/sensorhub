@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gold Var Sensor Hub</title>
+<meta name="description" content="Download Gold Var Sensor Hub for Android and Windows: the dashboard of the GOLD-VAR illegal-mining detection system.">
+<style>
+  :root {
+    --bg: #f6f7f4; --surface: #ffffff; --surface-2: #eef0ea; --text: #1c2119; --muted: #5d6656;
+    --line: #dde1d6; --accent: #b8860b; --accent-ink: #ffffff; --accent-soft: #f6ecd2; --ok: #2f7d4f;
+    --shadow: 0 1px 2px rgba(20, 24, 16, .06), 0 8px 24px rgba(20, 24, 16, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12140f; --surface: #1a1d16; --surface-2: #22261d; --text: #ecefe6; --muted: #a2ab98;
+      --line: #2e3327; --accent: #e0b43c; --accent-ink: #1a1505; --accent-soft: #2f2914; --ok: #6cc28f;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+
+  header { padding: 56px 0 28px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 4px 12px;
+  }
+  .badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.08; letter-spacing: -.02em; margin: 16px 0 12px; }
+  .lead { font-size: clamp(16px, 2.4vw, 19px); color: var(--muted); max-width: 640px; margin: 0; }
+
+  .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 32px 0 8px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .dl h2 { display: flex; align-items: center; gap: 10px; font-size: 20px; margin: 0 0 4px; }
+  .dl h2 svg { flex: none; }
+  .dl p { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 700;
+    border-radius: 12px; padding: 13px 16px; font-size: 16px;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .meta { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 1.4em; }
+  .release-line { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+  .release-line a { color: var(--accent); }
+
+  section { padding: 36px 0 0; }
+  section > h2 { font-size: 22px; margin: 0 0 14px; letter-spacing: -.01em; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 17px; }
+  ol { margin: 0; padding-left: 20px; }
+  ol li { margin: 0 0 8px; }
+  ol li:last-child { margin: 0; }
+  code { background: var(--surface-2); border-radius: 6px; padding: 1px 6px; font-size: .92em; overflow-wrap: anywhere; }
+
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
+  }
+  .flow span { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .flow b { color: var(--muted); font-weight: 400; }
+
+  .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .link {
+    display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .link:hover { border-color: var(--accent); }
+  .link strong { display: block; }
+  .link small { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 14px; padding: 40px 0 48px; }
+  @media (max-width: 480px) { header { padding-top: 36px; } .card { padding: 18px; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge"><i></i>GOLD-VAR · Sci-Tech Innovation Challenge 2026</span>
+      <h1>Gold Var Sensor Hub</h1>
+      <p class="lead">The dashboard for GOLD-VAR, an illegal-mining detection system. It shows live readings from motion, sound, vibration and distance sensors, raises alerts, and keeps a database of every reading on your device.</p>
+
+      <div class="downloads">
+        <div class="card dl">
+          <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            Android
+          </h2>
+          <p>For phones and tablets (Android 7 or newer).</p>
+          <a class="btn" id="dl-apk" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub.apk">Download .apk</a>
+          <div class="meta" id="meta-apk"></div>
+        </div>
+        <div class="card dl">
+          <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Windows
+          </h2>
+          <p>For PCs and laptops. No installation needed.</p>
+          <a class="btn" id="dl-exe" href="https://github.com/nexustech180/sensorhub/releases/latest/download/GoldVarSensorHub.exe">Download .exe</a>
+          <div class="meta" id="meta-exe"></div>
+        </div>
+      </div>
+      <p class="release-line" id="release-line">Always the newest version · <a href="https://github.com/nexustech180/sensorhub/releases">all releases</a> · <a href="app/">try the web demo</a></p>
+    </header>
+
+    <section>
+      <h2>Install</h2>
+      <div class="grid2">
+        <div class="card">
+          <h3>Android</h3>
+          <ol>
+            <li>Tap <strong>Download .apk</strong> on the phone.</li>
+            <li>Open the downloaded file. If asked, allow <strong>Install unknown apps</strong> for your browser or file manager.</li>
+            <li>Open <strong>Gold Var Sensor Hub</strong>. It starts in demo mode, so you see data right away.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h3>Windows</h3>
+          <ol>
+            <li>Click <strong>Download .exe</strong> and run the file.</li>
+            <li>If Windows SmartScreen warns, click <strong>More info → Run anyway</strong>. The app is safe but isn't code-signed.</li>
+            <li>The first start takes a few seconds while it unpacks.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Connect to the GOLD-VAR system</h2>
+      <div class="card">
+        <div class="flow" aria-label="How data flows">
+          <span>Sensor nodes</span><b>→ radio →</b><span>Arduino Mega</span><b>→</b><span>ESP32</span><b>→ WiFi →</b><span>This app</span>
+        </div>
+        <ol style="margin-top:16px">
+          <li>Connect your phone or PC to the <strong>same WiFi or phone hotspot</strong> as the ESP32. If the ESP32 can't find your WiFi, it makes its own hotspot, <code>GOLD-VAR</code> (password <code>goldvar123</code>).</li>
+          <li>Read the address on the Mega's screen, page 4, for example <code>IP: 192.168.43.120</code>.</li>
+          <li>In the app, open <strong>Settings</strong>, turn <strong>Demo mode</strong> off, enter that address under <strong>ESP32 sensor board</strong> and click <strong>Test connection</strong>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <h2>Links</h2>
+      <div class="links">
+        <a class="link" href="https://github.com/nexustech180/sensorhub/releases"><strong>All releases</strong><small>Every version of the apps</small></a>
+        <a class="link" href="app/"><strong>Web demo</strong><small>Try the dashboard in your browser</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub"><strong>Source code</strong><small>GitHub repository</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub#readme"><strong>Setup guide</strong><small>Wiring, ESP32 setup, data format</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub/blob/main/firmware/esp32_wifi_gateway/esp32_wifi_gateway.ino"><strong>ESP32 gateway firmware</strong><small>Arduino sketch for the ESP32</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub/issues"><strong>Report a problem</strong><small>Open an issue on GitHub</small></a>
+      </div>
+    </section>
+
+    <footer>
+      GOLD-VAR (Violation Alert Report): detecting illegal mining, protecting natural resources and reporting violations promptly.
+    </footer>
+  </div>
+
+<script>
+  // Fill in the newest version and file sizes from GitHub (the buttons work without this).
+  (async () => {
+    try {
+      const res = await fetch('https://api.github.com/repos/nexustech180/sensorhub/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+      if (!res.ok) return;
+      const rel = await res.json();
+      const mb = n => (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB';
+      const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+      for (const [ext, id] of [['apk', 'meta-apk'], ['exe', 'meta-exe']]) {
+        const a = (rel.assets || []).find(x => x.name.toLowerCase().endsWith('.' + ext));
+        if (a) document.getElementById(id).textContent = `${rel.tag_name} · ${mb(a.size)}${date ? ' · ' + date : ''}`;
+      }
+      const line = document.getElementById('release-line');
+      line.firstChild.textContent = `Newest version: ${rel.tag_name}${date ? ' (' + date + ')' : ''} · `;
+    } catch { /* offline or rate-limited: buttons still work */ }
+  })();
+</script>
+</body>
+</html>
