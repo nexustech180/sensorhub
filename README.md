@@ -104,7 +104,7 @@ About the key being public:
 - **Android settings already in place:**
   - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP32 on the local network.
   - `goldvar.local` usually doesn't resolve on phones, so use the IP address shown on the Mega's LCD (page 4).
-- **Neither app is signed for a store.** The APK is a debug build that installs directly from the file. The EXE is a portable program that Windows SmartScreen may warn about the first time.
+- **Neither app is published on a store.** The APK is signed with the project's own permanent key (see below) and installs directly from the file. The EXE is a portable program that Windows SmartScreen may warn about the first time.
 
 ## Smart classification
 
@@ -126,3 +126,14 @@ To add a sensor, add another `"key": value` to the firmware's JSON. It will appe
 - **Random**: realistic drifting values with occasional spikes (an object comes close, a loud noise, muddy water, a pH swing).
 - **Pre-coded script**: a fixed, repeating scenario that runs through every warning and critical alert.
 - **Video**: a built-in simulated underwater camera feed, which gets murky when turbidity rises. You can also choose your own video file or URL to loop.
+
+## Signing the Android app (one-time setup)
+
+Android only installs an update over an existing app if both are signed with the **same key**. Set the key up once, and every later build updates in place and keeps the app's data.
+
+1. On your own computer (Java installed), run `./scripts/make-keystore.sh`. It creates `goldvar-release.jks` and a base64 text file.
+2. **Back up the `.jks` file and its password** in a private, safe place. If they are lost, the installed app can never be updated again, only uninstalled and replaced.
+3. In GitHub, go to **Settings → Secrets and variables → Actions** and add three repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS`. The script prints the values to use.
+4. Never commit the key. `.gitignore` already blocks `*.jks` and `*.base64.txt`.
+
+Without these secrets, normal builds fall back to a debug-signed APK (with a warning) and **tag builds fail on purpose**, so a Release can't ship with the wrong key. The first install of a signed build requires uninstalling any older debug-signed version once.

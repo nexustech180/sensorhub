@@ -6,3 +6,8 @@ android/
 desktop/node_modules/
 desktop/www/
 desktop/dist/
+
+# Signing keys must never be committed
+*.jks
+*.keystore
+*.base64.txt
