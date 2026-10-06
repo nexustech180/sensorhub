@@ -11,4 +11,4 @@
  * key in a Google Cloud project with NO billing enabled, restricted to the
  * "Generative Language API": then the worst case is someone using up the free quota.
  */
-const GEMINI_API_KEY = '';
+const GEMINI_API_KEY = 'AQ.Ab8RN6LDFz54_oShb9_oJTd0FacI9YGOrfHVbEzEAOMUjrEZfQ;'
