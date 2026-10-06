@@ -82,7 +82,7 @@ If the Mega prints something the built-in reader can't understand, the **AI help
 
 **Setup (once):**
 1. Go to [aistudio.google.com](https://aistudio.google.com) and choose **Get API key**. Keep billing **off** for that project.
-2. Add it to GitHub as a **repository secret** named `GEMINI_API_KEY`: **Settings → Secrets and variables → Actions → New repository secret**. The app builds insert it into the apps; `js/ai-config.js` stays empty in the code. For a quick local test you can paste a key into that file, but don't commit it.
+2. Put it in `js/ai-config.js`, replacing only the text between the quotes, and commit. (Optional: a repository secret named `GEMINI_API_KEY` overrides that value in the app builds and keeps the key out of the public code, which makes Google less likely to disable it.)
 3. Recommended: in [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), restrict the key to the *Generative Language API*.
 4. Build the app (push to `main`, or push a `v*` tag for a Release).
 

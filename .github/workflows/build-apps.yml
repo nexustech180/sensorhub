@@ -4,7 +4,7 @@ name: Build apps
 # from the same dashboard (index.html, css/, js/).
 # - Every push to main / android-apk: both files are attached to the workflow run (Artifacts).
 # - Pushing a tag like v0.1.0: both files are also published on a GitHub Release.
-# The Gemini key comes from the repository secret GEMINI_API_KEY (never stored in the code).
+# The Gemini key is hard-coded in js/ai-config.js; a GEMINI_API_KEY repository secret, if set, overrides it.
 on:
   push:
     branches: [main, android-apk]

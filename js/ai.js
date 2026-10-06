@@ -236,7 +236,7 @@ const AiAssist = (() => {
     if (!res.ok) {
       const err = body.error || {};
       const reason = (err.details || []).map(d => d.reason).find(Boolean) || err.status || '';
-      if ((res.status === 400 && /API_KEY_INVALID/.test(reason + err.message)) || res.status === 403) {
+      if ((res.status === 400 && /API_KEY_INVALID/.test(reason + err.message)) || res.status === 401 || res.status === 403) {
         keyRejected = true;
         throw new TransientError('The Gemini API key in js/ai-config.js was rejected or blocked. Make a new key and update that file.');
       }
