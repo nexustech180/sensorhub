@@ -6,20 +6,20 @@ A dashboard app for the GOLD-VAR system: an **ESP32 gateway** (or sensor board) 
 
 **Android:** download **`GoldVarSensorHub.apk`** from this repository's **Releases** page, open it on the phone, and allow **Install unknown apps** when asked. The phone must be on the same WiFi or hotspot as the ESP32.
 
-**Windows:** an `.exe` is planned. Until then, double-click **`start.bat`**, which serves the app at http://localhost:8080 and opens it in your browser.
+**Windows:** download **`GoldVarSensorHub.exe`** from **Releases** and run it; no installation is needed. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
 
 The app starts in **Demo mode**, so you can see it working with no hardware.
 
-### Building the Android app
+### Building the apps
 
-GitHub builds it automatically (`.github/workflows/build-apk.yml`). Every push to `main` builds the APK; download it from the workflow run's **Artifacts**. To publish a Release, push a version tag:
+GitHub builds both apps automatically (`.github/workflows/build-apps.yml`). Every push to `main` builds the `.apk` and `.exe`; download them from the workflow run's **Artifacts**. To publish a Release with both files, push a version tag:
 
 ```
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The app is the same `index.html`, `css/` and `js/`, wrapped with [Capacitor](https://capacitorjs.com) (`capacitor.config.json`). It allows plain `http://` so it can reach the ESP32 on the local network.
+Both apps are the same `index.html`, `css/` and `js/`: wrapped with [Capacitor](https://capacitorjs.com) for Android (`capacitor.config.json`) and [Electron](https://www.electronjs.org) for Windows (`desktop/`). The Android app allows plain `http://` so it can reach the ESP32 on the local network.
 
 ## Screens
 
@@ -82,7 +82,7 @@ If the Mega prints something the built-in reader can't understand, the **AI help
 
 **Setup (once):**
 1. Go to [aistudio.google.com](https://aistudio.google.com) and choose **Get API key**. Keep billing **off** for that project.
-2. Add it to GitHub as a **repository secret** named `GEMINI_API_KEY`: **Settings → Secrets and variables → Actions → New repository secret**. The Android build inserts it into the app; `js/ai-config.js` stays empty in the code. For a quick local test you can paste a key into that file, but don't commit it.
+2. Add it to GitHub as a **repository secret** named `GEMINI_API_KEY`: **Settings → Secrets and variables → Actions → New repository secret**. The app builds insert it into the apps; `js/ai-config.js` stays empty in the code. For a quick local test you can paste a key into that file, but don't commit it.
 3. Recommended: in [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), restrict the key to the *Generative Language API*.
 4. Build the app (push to `main`, or push a `v*` tag for a Release).
 
@@ -99,12 +99,12 @@ About the key being public:
 
 ## App notes (Android .apk and Windows .exe)
 
-- **One code base:** the apps bundle the same `index.html`, `css/` and `js/`, with relative paths and no server needed. Android uses Capacitor; Windows (planned) can use Electron.
+- **One code base:** the apps bundle the same `index.html`, `css/` and `js/`, with relative paths and no server needed. Android uses Capacitor; Windows uses Electron.
 - **AI key:** the apps use the built-in key from `js/ai-config.js` (see above).
 - **Android settings already in place:**
   - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP32 on the local network.
   - `goldvar.local` usually doesn't resolve on phones, so use the IP address shown on the Mega's LCD (page 4).
-- **The Android APK is a debug build.** It installs directly from the file and isn't meant for the Play Store.
+- **Neither app is signed for a store.** The APK is a debug build that installs directly from the file. The EXE is a portable program that Windows SmartScreen may warn about the first time.
 
 ## Smart classification
 
