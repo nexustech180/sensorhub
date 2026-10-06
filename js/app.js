@@ -706,7 +706,7 @@ const geminiKey = () => (typeof GEMINI_API_KEY !== 'undefined' ? String(GEMINI_A
 
 function aiSummary() {
   const n = AiAssist.count();
-  if (!geminiKey()) return `Off: no Gemini key in js/ai-config.js. ${n} learned rule${n === 1 ? '' : 's'} still used.`;
+  if (!geminiKey()) return `Off: no Gemini key in this build (GEMINI_API_KEY secret). ${n} learned rule${n === 1 ? '' : 's'} still used.`;
   return settings.ai ? `On (${AiAssist.model}). ${n} learned rule${n === 1 ? '' : 's'} saved on this device.`
     : `Off. ${n} learned rule${n === 1 ? '' : 's'} still used.`;
 }
@@ -827,11 +827,20 @@ function renderSensorTable(force) {
     <tr data-key="${esc(s.key)}">
       <td><code>${esc(s.key)}</code></td>
       <td>${esc(s.name)}</td>
-      <td><select data-override="${esc(s.key)}"><option value="">${AiAssist.isLearnedKey(s.key) ? 'AI' : 'Auto'} (${esc(typeLabel(AiAssist.keyTypes()[s.key] || s.autoType))})</option>${opts}</select></td>
+      <td><select data-override="${esc(s.key)}"><option value="">${AiAssist.isLearnedKey(s.key) ? 'AI' : 'Auto'} (${esc(typeLabel(AiAssist.keyTypes()[s.key] || s.autoType))})</option>${opts}</select>${aiBadge(s.key)}</td>
       <td><span class="gtag" style="--g:${groupColor(s.group)}">${esc(groupLabel(s.group))}</span></td>
       <td class="num">${fmtVal(s.value, s.kind)} ${esc(s.unit)}</td>
     </tr>`).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No sensors detected yet.</td></tr>';
   for (const sel of $$('select[data-override]', body)) sel.value = settings.overrides[sel.dataset.override] || '';
+}
+
+// "AI 92%" next to sensors whose type came from Gemini (hidden when a manual choice overrides it)
+function aiBadge(key) {
+  const r = AiAssist.keyInfo(key);
+  if (!r || settings.overrides[key]) return '';
+  const pct = r.confidence == null ? '' : ` ${r.confidence}%`;
+  const tip = r.reason || 'Classified by Gemini';
+  return ` <span class="ai-tag" title="${esc(tip)}">AI${pct}</span>`;
 }
 
 function onOverride(e) {
@@ -842,7 +851,7 @@ function onOverride(e) {
   saveSettings();
   const s = S.sensors.get(key);
   if (s) {
-    const T = Classifier.byId(sel.value || s.autoType);
+    const T = Classifier.byId(sel.value || AiAssist.keyTypes()[key] || s.autoType);
     s.type = T.id; s.group = T.group;
     S.version++;
   }
@@ -968,6 +977,14 @@ function bind() {
     S.version++;
     setAiStatus(aiSummary());
     renderSensorTable(true);
+  };
+  $('#ai-test').onclick = async e => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    setAiStatus('Testing Gemini…');
+    const r = await AiAssist.test();
+    btn.disabled = false;
+    setAiStatus(r.message, r.ok ? 'ok' : 'error');
   };
   $('#t-cam').onclick = testCam;
 
