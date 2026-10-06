@@ -50,7 +50,7 @@ jobs:
       - name: Allow plain HTTP to the ESP32 on the local network
         run: |
           M=android/app/src/main/AndroidManifest.xml
-          grep -q 'usesCleartextTraffic' "$M" || sed -i 's/<application /<application android:usesCleartextTraffic="true" /' "$M"
+          grep -q 'usesCleartextTraffic' "$M" || sed -i 's/<application\b/<application android:usesCleartextTraffic="true"/' "$M"
           grep -q 'usesCleartextTraffic="true"' "$M"
           echo "Cleartext HTTP enabled in $M"
 
