@@ -2,7 +2,7 @@ name: Publish homepage
 
 # Publishes https://nexustech180.github.io/sensorhub/
 #   /      -> site/index.html (download page with all links)
-#   /app/  -> the dashboard as a web demo (no AI key: js/ai-config.js stays empty)
+#   /app/  -> the dashboard as a web demo (uses the key hard-coded in js/ai-config.js)
 on:
   push:
     branches: [main]
