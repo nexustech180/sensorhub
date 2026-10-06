@@ -61,49 +61,22 @@ jobs:
           grep -q "versionCode ${{ github.run_number }}" "$F"
           echo "versionCode = ${{ github.run_number }}"
 
-      - name: Check the signing key
-        id: signing
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "::error::Release builds must be signed. Add the ANDROID_KEYSTORE_* secrets (see README, 'Signing the Android app')."
-            exit 1
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: building a DEBUG-signed APK that cannot update an app signed with the real key."
-          fi
-
       - name: Build APK (unsigned release)
-        if: steps.signing.outputs.enabled == 'true'
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Sign the APK with the permanent key
-        if: steps.signing.outputs.enabled == 'true'
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      # The signing key is committed on purpose (android-signing/): this is a hobby project, so every
+      # build uses the same key and installs as an in-place update. Anyone with the repo could sign an
+      # APK with it, so don't reuse this key for anything that matters.
+      - name: Sign the APK with the project key
         run: |
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           UNSIGNED=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
-          "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+          "$BT/apksigner" sign --ks android-signing/goldvar-release.jks --ks-key-alias goldvar \
+            --ks-pass pass:goldvar-steam --key-pass pass:goldvar-steam \
             --out GoldVarSensorHub.apk "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" verify --print-certs GoldVarSensorHub.apk | grep -i 'SHA-256'
-          rm -f "$RUNNER_TEMP/release.jks"
-
-      - name: Build APK (debug, unsigned-key fallback)
-        if: steps.signing.outputs.enabled != 'true'
-        working-directory: android
-        run: |
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../GoldVarSensorHub.apk
 
       - uses: actions/upload-artifact@v7
         with:

@@ -127,13 +127,8 @@ To add a sensor, add another `"key": value` to the firmware's JSON. It will appe
 - **Pre-coded script**: a fixed, repeating scenario that runs through every warning and critical alert.
 - **Video**: a built-in simulated underwater camera feed, which gets murky when turbidity rises. You can also choose your own video file or URL to loop.
 
-## Signing the Android app (one-time setup)
+## Signing the Android app
 
-Android only installs an update over an existing app if both are signed with the **same key**. Set the key up once, and every later build updates in place and keeps the app's data.
+Android only installs an update over an existing app if both are signed with the **same key**. This project keeps its key in the repository (`android-signing/goldvar-release.jks`, password `goldvar-steam`) so every build, from any machine, signs the same way and updates in place with data kept. That is a deliberate choice for a hobby project: anyone with the repo could sign an APK as this app, so don't reuse the key for anything important.
 
-1. On your own computer (Java installed), run `./scripts/make-keystore.sh`. It creates `goldvar-release.jks` and a base64 text file.
-2. **Back up the `.jks` file and its password** in a private, safe place. If they are lost, the installed app can never be updated again, only uninstalled and replaced.
-3. In GitHub, go to **Settings → Secrets and variables → Actions** and add three repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS`. The script prints the values to use.
-4. Never commit the key. `.gitignore` already blocks `*.jks` and `*.base64.txt`.
-
-Without these secrets, normal builds fall back to a debug-signed APK (with a warning) and **tag builds fail on purpose**, so a Release can't ship with the wrong key. The first install of a signed build requires uninstalling any older debug-signed version once.
+If the key is ever replaced, the installed app must be uninstalled once before the new one will install.
