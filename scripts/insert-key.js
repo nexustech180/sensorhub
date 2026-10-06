@@ -13,7 +13,8 @@ if (!key) {
 const src = fs.readFileSync(file, 'utf8');
 // Accepts either quote style, with or without the trailing semicolon
 const KEY_LINE = /const GEMINI_API_KEY\s*=\s*(['"])[^'"]*\1;?/;
-if (!KEY_LINE.test(src)) throw new Error(`Key line not found in ${file}`);
-const out = src.replace(KEY_LINE, `const GEMINI_API_KEY = ${JSON.stringify(key)};`);
+const line = `const GEMINI_API_KEY = ${JSON.stringify(key)};`;
+// If the line was deleted from the file, add it back rather than failing the build
+const out = KEY_LINE.test(src) ? src.replace(KEY_LINE, line) : src.replace(/\s*$/, '\n') + line + '\n';
 fs.writeFileSync(file, out);
 console.log(`AI helper key inserted into ${file}.`);

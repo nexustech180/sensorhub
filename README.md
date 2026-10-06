@@ -82,7 +82,7 @@ If the Mega prints something the built-in reader can't understand, the **AI help
 
 **Setup (once):**
 1. Go to [aistudio.google.com](https://aistudio.google.com) and choose **Get API key**. Keep billing **off** for that project.
-2. Put it in `js/ai-config.js`, replacing only the text between the quotes, and commit. (Optional: a repository secret named `GEMINI_API_KEY` overrides that value in the app builds and keeps the key out of the public code, which makes Google less likely to disable it.)
+2. Add it to GitHub as a **repository secret** named `GEMINI_API_KEY`: **Settings → Secrets and variables → Actions → New repository secret**. The app builds insert it into the apps; `js/ai-config.js` stays empty in the code, so Google can't find the key in public and disable it.
 3. Recommended: in [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), restrict the key to the *Generative Language API*.
 4. Build the app (push to `main`, or push a `v*` tag for a Release).
 
@@ -93,14 +93,14 @@ How it works:
 - To reset it, use **Forget learned rules**. To correct a single sensor, use **Settings → Detected sensors**. Your manual choice always wins over the AI's.
 
 About the key being public:
-- **Anyone can read the key** from GitHub Pages or the apps. With a free-tier key and billing off, **it can't cost money**. The worst case is someone using up the free quota, or Google disabling the key, so the AI helper stops. Fix it by making a new key and updating `js/ai-config.js`.
+- **Anyone can read the key** from GitHub Pages or the apps. With a free-tier key and billing off, **it can't cost money**. The worst case is someone using up the free quota, or Google disabling the key, so the AI helper stops. Fix it by making a new key, updating the `GEMINI_API_KEY` secret and running **Build apps** again.
 - **On Gemini's free tier, Google may use what is sent to improve its products.** Here that is only the unreadable sensor text.
 - **The rest of the dashboard never depends on the AI helper.** With no key, or a disabled one, everything else works normally.
 
 ## App notes (Android .apk and Windows .exe)
 
 - **One code base:** the apps bundle the same `index.html`, `css/` and `js/`, with relative paths and no server needed. Android uses Capacitor; Windows uses Electron.
-- **AI key:** the apps use the built-in key from `js/ai-config.js` (see above).
+- **AI key:** inserted into the apps at build time from the `GEMINI_API_KEY` secret (see above).
 - **Android settings already in place:**
   - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP32 on the local network.
   - `goldvar.local` usually doesn't resolve on phones, so use the IP address shown on the Mega's LCD (page 4).
