@@ -174,6 +174,16 @@
       </section>
 
       <section class="panel">
+        <h3>AI helper (optional)</h3>
+        <label class="switch-row">
+          <span><b>Use AI for data it can't read</b><small>Uses Google Gemini (free tier). Only names and lines the built-in reader doesn't understand are sent. Each answer is saved as a rule, so it is asked only once and then works offline.</small></span>
+          <input type="checkbox" class="switch" id="s-ai">
+        </label>
+        <div class="test-out" id="ai-status"></div>
+        <div class="row"><button class="btn ghost sm" id="ai-forget">Forget learned rules</button></div>
+      </section>
+
+      <section class="panel">
         <h3>ESP32-CAM</h3>
         <label class="field">IP address<input type="text" id="s-camIp" placeholder="192.168.1.60" autocomplete="off"></label>
         <label class="field">Stream URL <small class="muted">({ip} is replaced)</small><input type="text" id="s-camStream"></label>
@@ -231,6 +241,8 @@
 <script src="js/db.js"></script>
 <script src="js/classifier.js"></script>
 <script src="js/demo.js"></script>
+<script src="js/ai-config.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

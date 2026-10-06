@@ -1,0 +1,12 @@
+{
+  "appId": "com.goldvar.sensorhub",
+  "appName": "Gold Var Sensor Hub",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

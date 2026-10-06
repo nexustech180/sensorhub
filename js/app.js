@@ -13,6 +13,7 @@ const KEY_KNOWN = 'sensorhub.known';
 const DEFAULTS = {
   demo: true, demoCam: true, demoPattern: 'random', demoVideoUrl: '', demoVideoName: '',
   mcuIp: '', mcuPath: '/data', pollMs: 2000,
+  ai: true,
   camIp: '', camStream: 'http://{ip}:81/stream', camCapture: 'http://{ip}/capture',
   notify: true, browserNotify: false, sound: false, overlay: true,
   maxRecords: 50000, thresholds: {}, overrides: {},
@@ -117,14 +118,41 @@ async function poll() {
   schedulePoll();
 }
 
+// Plain-text payloads (e.g. from the GOLD-VAR pass-through gateway) are read line by line:
+// the built-in "name=value" parser first, then rules the AI helper learned earlier; lines
+// nothing can read yet are queued for the AI helper (if it's turned on).
+// The gateway sends the newest lines first, so the first value for a name wins.
+function prepareText(payload) {
+  if (typeof payload !== 'string') return payload;
+  try { return JSON.parse(payload); } catch { /* not JSON: read as text */ }
+  const merged = {};
+  for (const raw of payload.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    let obj = Classifier.parseText(line);
+    if (!Object.keys(obj).length) {
+      obj = AiAssist.applyLine(line);
+      if (!obj) { AiAssist.noteUnknownLine(line); continue; }
+    }
+    for (const [k, v] of Object.entries(obj)) if (!(k in merged)) merged[k] = v;
+  }
+  return merged;
+}
+
+const classifierOverrides = () => ({ ...AiAssist.keyTypes(), ...settings.overrides });
+
 async function ingest(payload, source) {
-  const items = Classifier.parse(payload, settings.overrides);
+  const items = Classifier.parse(prepareText(payload), classifierOverrides());
   if (!items.length) return;
   const ts = Date.now();
   const recs = [];
 
   for (const it of items) {
-    const { status, reason } = Classifier.evaluate(it, thresholdsFor(it.type));
+    if (it.type === 'other' && !settings.overrides[it.key]) AiAssist.noteUnknownKey(it.key, it.value);
+    // A status reported by the device (the GOLD-VAR Mega's own WARNING/DANGER) wins over local thresholds
+    const { status, reason } = it.devStatus
+      ? { status: it.devStatus, reason: it.devStatus === 'ok' ? 'normal (reported by device)' : 'reported by device' }
+      : Classifier.evaluate(it, thresholdsFor(it.type));
     let s = S.sensors.get(it.key);
     if (!s) {
       s = { key: it.key, hist: [], min: Infinity, max: -Infinity, sum: 0, n: 0, status: 'ok' };
@@ -664,7 +692,43 @@ async function clearDb() {
 }
 
 /* ---------------- settings ---------------- */
-const FIELDS = ['demo', 'demoCam', 'demoPattern', 'demoVideoUrl', 'mcuIp', 'mcuPath', 'pollMs', 'camIp', 'camStream', 'camCapture', 'notify', 'browserNotify', 'sound', 'maxRecords'];
+const FIELDS = ['demo', 'demoCam', 'demoPattern', 'demoVideoUrl', 'mcuIp', 'mcuPath', 'pollMs', 'ai', 'camIp', 'camStream', 'camCapture', 'notify', 'browserNotify', 'sound', 'maxRecords'];
+
+/* ---------------- AI helper ---------------- */
+function setAiStatus(msg, level = 'info') {
+  const el = $('#ai-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'test-out ' + ({ ok: 'ok', error: 'bad', warn: 'bad' }[level] || '');
+}
+// The Gemini key is built into the site/app (js/ai-config.js), so everyone shares it.
+const geminiKey = () => (typeof GEMINI_API_KEY !== 'undefined' ? String(GEMINI_API_KEY) : '').trim();
+
+function aiSummary() {
+  const n = AiAssist.count();
+  if (!geminiKey()) return `Off: no Gemini key in js/ai-config.js. ${n} learned rule${n === 1 ? '' : 's'} still used.`;
+  return settings.ai ? `On (${AiAssist.model}). ${n} learned rule${n === 1 ? '' : 's'} saved on this device.`
+    : `Off. ${n} learned rule${n === 1 ? '' : 's'} still used.`;
+}
+function configureAi() {
+  // Remove keys saved by older versions in browser storage
+  if ('aiKey' in settings) { delete settings.aiKey; saveSettings(); }
+  if ('relayUrl' in settings) { delete settings.relayUrl; saveSettings(); }
+  try { localStorage.removeItem('sensorhub.geminiKey'); } catch { /* storage unavailable */ }
+  AiAssist.configure({
+    enabled: () => settings.ai && !!geminiKey(),
+    apiKey: geminiKey,
+    onStatus: (msg, level) => {
+      setAiStatus(msg, level);
+      if (level === 'error') notify('warn', 'AI helper', msg);
+    },
+    onLearned: learned => {
+      S.version++;
+      for (const l of learned) notify('info', 'AI learned how to read new data', l);
+      if (S.route === 'settings') renderSensorTable(true);
+    },
+  });
+}
 
 function fillSettings() {
   for (const f of FIELDS) {
@@ -672,6 +736,7 @@ function fillSettings() {
     if (el.type === 'checkbox') el.checked = !!settings[f]; else el.value = settings[f] ?? '';
   }
   updateVideoInfo();
+  setAiStatus(aiSummary());
   renderSensorTable(true);
   renderThresholds();
 }
@@ -684,6 +749,7 @@ function applySettings(changed) {
   saveSettings();
   $('#pill-demo').hidden = !settings.demo;
   if (['demo', 'mcuIp', 'mcuPath', 'demoPattern', 'pollMs'].includes(changed)) schedulePoll(0);
+  if (changed === 'ai') setAiStatus(aiSummary());
   if (['demo', 'demoCam', 'camIp', 'camStream', 'camCapture'].includes(changed)) {
     if (demoCam()) setStatus('cam', 'demo');
     else { setStatus('cam', 'idle'); refreshThumbSnap(); }
@@ -761,7 +827,7 @@ function renderSensorTable(force) {
     <tr data-key="${esc(s.key)}">
       <td><code>${esc(s.key)}</code></td>
       <td>${esc(s.name)}</td>
-      <td><select data-override="${esc(s.key)}"><option value="">Auto (${esc(typeLabel(s.autoType))})</option>${opts}</select></td>
+      <td><select data-override="${esc(s.key)}"><option value="">${AiAssist.isLearnedKey(s.key) ? 'AI' : 'Auto'} (${esc(typeLabel(AiAssist.keyTypes()[s.key] || s.autoType))})</option>${opts}</select></td>
       <td><span class="gtag" style="--g:${groupColor(s.group)}">${esc(groupLabel(s.group))}</span></td>
       <td class="num">${fmtVal(s.value, s.kind)} ${esc(s.unit)}</td>
     </tr>`).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No sensors detected yet.</td></tr>';
@@ -813,7 +879,7 @@ async function testMcu() {
   out.textContent = 'Connecting to ' + mcuUrl() + ' …';
   try {
     const payload = await fetchPayload(mcuUrl(), 5000);
-    const items = Classifier.parse(payload, settings.overrides);
+    const items = Classifier.parse(prepareText(payload), classifierOverrides());
     out.innerHTML = `<span class="ok">✓ Connected — ${items.length} reading${items.length === 1 ? '' : 's'} found</span>` +
       (items.length ? `<ul>${items.map(i => `<li><b>${esc(i.name)}</b> = ${fmtVal(i.value, i.kind)} ${esc(i.unit)} → ${esc(typeLabel(i.type))} (${esc(groupLabel(i.group))})</li>`).join('')}</ul>`
         : '<div class="muted">The board answered but no numeric values were found in the response.</div>');
@@ -896,6 +962,13 @@ function bind() {
   $('#s-thresholds').addEventListener('change', onThreshold);
   $('#s-thReset').onclick = () => { settings.thresholds = {}; saveSettings(); renderThresholds(); };
   $('#t-mcu').onclick = testMcu;
+  $('#ai-forget').onclick = () => {
+    if (!confirm('Forget everything the AI helper learned on this device? Unknown data will be sent to Gemini again.')) return;
+    AiAssist.forget();
+    S.version++;
+    setAiStatus(aiSummary());
+    renderSensorTable(true);
+  };
   $('#t-cam').onclick = testCam;
 
   window.addEventListener('resize', () => { if (S.route === 'db') { $('#groups').dataset.v = ''; renderDb(); } });
@@ -907,6 +980,7 @@ async function init() {
   await seedFromDb();
   await loadAlerts();
   await loadDemoVideo();
+  configureAi();
   bind();
   $('#pill-demo').hidden = !settings.demo;
   updateBell();

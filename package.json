@@ -1,0 +1,17 @@
+{
+  "name": "gold-var-sensor-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gold Var Sensor Hub - GOLD-VAR dashboard packaged as an Android app (Capacitor)",
+  "scripts": {
+    "web": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www');for(const p of ['index.html','css','js'])fs.cpSync(p,'www/'+p,{recursive:true});\"",
+    "sync": "npm run web && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

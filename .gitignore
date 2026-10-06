@@ -1,2 +1,5 @@
 .claude/
 _testsnap.png
+node_modules/
+www/
+android/
