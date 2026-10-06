@@ -24,6 +24,10 @@ const AiAssist = (() => {
   const RETRY_AFTER_MS = 10 * 60 * 1000;   // items Gemini couldn't classify
   const QUOTA_PAUSE_MS = 15 * 60 * 1000;   // after "quota exceeded"
   const NUM_RE = /-?\d+(?:\.\d+)?/g;
+  const ANSWER_TIMEOUT_MS = 30000;
+  const REACH_TIMEOUT_MS = 6000;           // Test Gemini: quick "can this device reach Google?" check
+  const NO_INTERNET_HINT = 'Check that this device has internet (open any website). ' +
+    "The ESP32's GOLD-VAR WiFi has no internet: use a phone hotspot or WiFi with internet instead.";
 
   let rules = load();
   const pendingKeys = new Map();    // key   -> sample value
@@ -221,11 +225,13 @@ const AiAssist = (() => {
 
   // Errors that mean "wait and try again later" keep the items queued;
   // errors about the content itself drop them for RETRY_AFTER_MS.
-  class TransientError extends Error {}
+  class TransientError extends Error {
+    constructor(message, code = '') { super(message); this.code = code; }
+  }
 
   async function callGemini(apiKey, prompt) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
+    const t = setTimeout(() => ctrl.abort(), ANSWER_TIMEOUT_MS);
     let res;
     try {
       res = await fetchFn(ENDPOINT, {
@@ -239,8 +245,9 @@ const AiAssist = (() => {
         }),
       });
     } catch (e) {
-      throw new TransientError(e.name === 'AbortError' ? 'Gemini did not answer in time; will retry later.'
-        : 'No internet connection to Gemini; will retry later.');
+      throw e.name === 'AbortError'
+        ? new TransientError(`Gemini did not answer within ${ANSWER_TIMEOUT_MS / 1000} s; will retry later. If this keeps happening: ${NO_INTERNET_HINT}`, 'timeout')
+        : new TransientError(`Can't reach Gemini; will retry later. ${NO_INTERNET_HINT}`, 'offline');
     } finally {
       clearTimeout(t);
     }
@@ -309,7 +316,10 @@ const AiAssist = (() => {
     if (callTimes.length >= MAX_CALLS_PER_HOUR) {
       return { ok: false, message: `Not tested: ${MAX_CALLS_PER_HOUR} AI requests already made this hour (limit). Try again later.` };
     }
-    callTimes.push(now);
+    // Step 1: a quick, free request (list one model) tells "no internet" apart from "Gemini is slow"
+    const reach = await reachGoogle(key);
+    if (!reach.ok) return reach;
+    callTimes.push(Date.now());
     const sample = [['h2s_lvl', 12]];
     try {
       const answer = await callGemini(key, buildPrompt(sample, []));
@@ -319,8 +329,44 @@ const AiAssist = (() => {
       if (Date.now() >= pausedUntil && (pendingKeys.size || pendingLines.size)) schedule(0);
       return { ok: true, ms: Date.now() - now, message: `Gemini works (${MODEL}, ${Date.now() - now} ms). Test: "h2s_lvl = 12" → ${Classifier.byId(type).label}.` };
     } catch (e) {
+      if (e.code === 'timeout') {
+        return { ok: false, message: `Google is reachable (answered in ${reach.ms} ms), but Gemini took longer than ${ANSWER_TIMEOUT_MS / 1000} s to answer. It may be busy: try again in a minute.` };
+      }
       return { ok: false, message: e.message };
     }
+  }
+
+  async function reachGoogle(key) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), REACH_TIMEOUT_MS);
+    const start = Date.now();
+    let res;
+    try {
+      res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`, {
+        signal: ctrl.signal, headers: { 'x-goog-api-key': key },
+      });
+    } catch (e) {
+      return {
+        ok: false,
+        message: e.name === 'AbortError'
+          ? `This device can't reach Google: no answer within ${REACH_TIMEOUT_MS / 1000} s. ${NO_INTERNET_HINT}`
+          : `This device can't reach Google: the connection failed. ${NO_INTERNET_HINT}`,
+      };
+    } finally {
+      clearTimeout(t);
+    }
+    const ms = Date.now() - start;
+    if (res.status === 401 || res.status === 403 || res.status === 400) {
+      const body = await res.json().catch(() => ({}));
+      const err = body.error || {};
+      const reason = (err.details || []).map(d => d.reason).find(Boolean) || err.status || '';
+      if (res.status !== 400 || /API_KEY_INVALID/.test(reason + err.message)) {
+        keyRejected = true;
+        return { ok: false, message: 'Google is reachable, but the Gemini API key was rejected or blocked. Make a new key, update the GEMINI_API_KEY secret and rebuild the app.' };
+      }
+    }
+    if (res.status === 404) return { ok: false, message: `Google is reachable, but the model ${MODEL} was not found. Google may have retired it: update MODEL in js/ai.js.` };
+    return { ok: true, ms };   // any other answer (even 429/5xx) means the network path works; step 2 reports the rest
   }
 
   const count = () => Object.keys(rules.keys).length + Object.keys(rules.lines).length;
