@@ -104,6 +104,7 @@ About the key being public:
 ## App notes (Android .apk and Windows .exe)
 
 - **One code base:** the apps bundle the same `index.html`, `css/` and `js/`, with relative paths and no server needed. Android uses Capacitor; Windows uses Electron.
+- **Notifications:** switch on **Settings → Phone / desktop notifications** and press **Send test notification**. On Android they use the system notification area (Capacitor Local Notifications, channel "Sensor alerts"); Android 13+ asks for permission once. They fire while the app is in the background. Android may pause apps that stay in the background with the screen off for a long time, so for round-the-clock monitoring keep the app open or exclude it from battery optimisation.
 - **AI key:** inserted into the apps at build time from the `GEMINI_API_KEY` secret (see above).
 - **Android settings already in place:**
   - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP32 on the local network.

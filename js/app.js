@@ -240,10 +240,77 @@ function notify(level, title, msg, sensor) {
   updateBell();
   renderAlertLists();
   if (settings.notify) toast(a);
-  if (settings.browserNotify && level !== 'info' && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+  if (settings.browserNotify && level !== 'info') systemNotify(title, msg, sensor);
+  if (settings.sound && (level === 'warn' || level === 'crit')) beep(level);
+}
+
+/* ---------------- phone / desktop notifications ----------------
+ * Android app: Capacitor's LocalNotifications plugin. The Android WebView has no web
+ * Notification API, so the web path below never showed anything on phones.
+ * Windows app and browsers: the web Notification API.
+ * Both only fire while the app is in the background; in front, the pop-ups show instead. */
+const NativePlugins = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
+const NativeNotes = NativePlugins?.LocalNotifications || null;
+let appInFront = true;
+let noteId = Date.now() % 1000000000;
+
+async function initSystemNotifications() {
+  if (!NativeNotes) return;
+  try { NativePlugins.App?.addListener('appStateChange', st => { appInFront = st.isActive; }); } catch { /* plugin missing */ }
+  try {
+    // Importance 5 = pops up on screen, with sound and vibration
+    await NativeNotes.createChannel({ id: 'alerts', name: 'Sensor alerts', description: 'Warnings, critical readings and lost connections', importance: 5, visibility: 1, vibration: true });
+  } catch { /* older Android: channels not needed */ }
+  if (settings.browserNotify && (await systemNotifyPermission(false)) !== 'granted') {
+    settings.browserNotify = false; saveSettings();
+  }
+}
+
+// 'granted', 'denied' or 'unsupported'. ask=true shows the system permission prompt if needed.
+async function systemNotifyPermission(ask) {
+  try {
+    if (NativeNotes) {
+      let p = await NativeNotes.checkPermissions();
+      if (p.display !== 'granted' && ask) p = await NativeNotes.requestPermissions();
+      return p.display === 'granted' ? 'granted' : 'denied';
+    }
+    if (!('Notification' in window)) return 'unsupported';
+    if (Notification.permission === 'granted') return 'granted';
+    return ask ? ((await Notification.requestPermission()) === 'granted' ? 'granted' : 'denied') : 'denied';
+  } catch { return 'unsupported'; }
+}
+
+function systemNotify(title, msg, sensor, force = false) {
+  if (NativeNotes) {
+    if (appInFront && !force) return;
+    noteId = (noteId + 1) % 2147483647;
+    NativeNotes.schedule({ notifications: [{ id: noteId, title, body: msg || '', channelId: 'alerts' }] }).catch(() => {});
+    return;
+  }
+  if ((document.hidden || force) && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification(title, { body: msg, tag: sensor || title }); } catch { /* unsupported */ }
   }
-  if (settings.sound && (level === 'warn' || level === 'crit')) beep(level);
+}
+
+async function onSystemNotifyToggle(el) {
+  const p = await systemNotifyPermission(true);
+  if (p === 'granted') return;
+  settings.browserNotify = false; el.checked = false; saveSettings();
+  notify('warn', 'Notifications are blocked', p === 'unsupported'
+    ? 'This device or browser does not support notifications.'
+    : NativeNotes ? 'Allow them in Android Settings → Apps → Gold Var Sensor Hub → Notifications, then switch this on again.'
+      : 'Allow notifications for this app or site in the system or browser settings, then switch this on again.');
+}
+
+async function testSystemNotify() {
+  const p = await systemNotifyPermission(true);
+  if (p !== 'granted') {
+    notify('warn', 'Notifications are blocked', NativeNotes
+      ? 'Allow them in Android Settings → Apps → Gold Var Sensor Hub → Notifications.'
+      : 'Allow notifications for this app or site, then try again.');
+    return;
+  }
+  systemNotify('Gold Var Sensor Hub', 'Test notification: alerts will look like this.', 'test', true);
 }
 
 function toast(a) {
@@ -768,11 +835,7 @@ function onSettingChange(e) {
   if (f === 'pollMs') v = Math.max(250, v || 2000);
   if (f === 'maxRecords') v = Math.max(1000, v || 50000);
   settings[f] = v;
-  if (f === 'browserNotify' && v && 'Notification' in window && Notification.permission !== 'granted') {
-    Notification.requestPermission().then(p => {
-      if (p !== 'granted') { settings.browserNotify = false; el.checked = false; saveSettings(); }
-    });
-  }
+  if (f === 'browserNotify' && v) onSystemNotifyToggle(el);
   if (f === 'demoVideoUrl') {
     if (v) { settings.demoVideoName = ''; DB.delFile('demoVideo').catch(() => {}); DemoFeed.setVideo(v); }
     else DemoFeed.setVideo(null);
@@ -987,6 +1050,7 @@ function bind() {
     setAiStatus(r.message, r.ok ? 'ok' : 'error');
   };
   $('#t-cam').onclick = testCam;
+  $('#t-notify').onclick = testSystemNotify;
 
   window.addEventListener('resize', () => { if (S.route === 'db') { $('#groups').dataset.v = ''; renderDb(); } });
 }
@@ -998,6 +1062,7 @@ async function init() {
   await loadAlerts();
   await loadDemoVideo();
   configureAi();
+  await initSystemNotifications();
   bind();
   $('#pill-demo').hidden = !settings.demo;
   updateBell();
