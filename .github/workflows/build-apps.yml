@@ -3,13 +3,19 @@ name: Build apps
 # Builds Gold Var Sensor Hub for Android (.apk, Capacitor) and Windows (.exe, Electron)
 # from the same dashboard (index.html, css/, js/).
 # - Every push to main / android-apk: both files are attached to the workflow run (Artifacts).
-# - Pushing a tag like v0.1.0: both files are also published on a GitHub Release.
+# - Pushing a tag like v0.1.0, or running this workflow by hand with "Release tag" filled in
+#   (Actions → Build apps → Run workflow): the files are also published on a GitHub Release.
 # The Gemini key comes from the repository secret GEMINI_API_KEY (js/ai-config.js stays empty in the code).
 on:
   push:
     branches: [main, android-apk]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish, e.g. v0.2.0 (leave empty to only build)'
+        required: false
+        default: ''
 
 permissions:
   contents: write   # needed to create the Release on tag pushes
@@ -139,26 +145,39 @@ jobs:
 
   release:
     name: Publish Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     needs: [apk, exe]
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
     steps:
+      - name: Check the tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Release tag must look like v1.2.3, got '$TAG'"; exit 1; }
+          echo "Publishing $TAG from ${{ github.sha }}"
+
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
+      - name: List the files to publish
+        run: ls -lR
+
       - uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}   # creates the tag here if it doesn't exist yet
           fail_on_unmatched_files: true
           files: |
             GoldVarSensorHub.apk
-            GoldVarSensorHub-64bit.exe
-            GoldVarSensorHub-32bit.exe
+            x64/GoldVarSensorHub-64bit.exe
+            ia32/GoldVarSensorHub-32bit.exe
           body: |
             Gold Var Sensor Hub - dashboard for the GOLD-VAR illegal-mining detection system.
 
             **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked. One file works on both 32-bit and 64-bit phones.
             **Windows:** download `GoldVarSensorHub-64bit.exe` (almost all PCs), or `GoldVarSensorHub-32bit.exe` for 32-bit Windows. Run it; no installation needed. If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
             To check: Windows Settings → System → About → System type.
+            **Updating from v0.1.0 on Android:** uninstall the old app once first (the signing key changed); later versions install over it.
 
             Connect the phone or PC to the same WiFi or hotspot as the ESP32, turn Demo mode off in Settings and enter the IP shown on the Mega's LCD (page 4).

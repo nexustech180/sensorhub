@@ -12,12 +12,14 @@ The app starts in **Demo mode**, so you can see it working with no hardware.
 
 ### Building the apps
 
-GitHub builds both apps automatically (`.github/workflows/build-apps.yml`). Every push to `main` builds the `.apk` and `.exe`; download them from the workflow run's **Artifacts**. To publish a Release with both files, push a version tag:
+GitHub builds both apps automatically (`.github/workflows/build-apps.yml`). Every push to `main` builds the `.apk` and `.exe`; download them from the workflow run's **Artifacts**. To publish a Release with all files (APK, 64-bit and 32-bit EXE), either open **Actions → Build apps → Run workflow**, type a tag like `v0.3.0` in **Release tag** and run it, or push a version tag:
 
 ```
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
+
+Raise `version` in `package.json` and `desktop/package.json` first, so the apps show the new version.
 
 Both apps are the same `index.html`, `css/` and `js/`: wrapped with [Capacitor](https://capacitorjs.com) for Android (`capacitor.config.json`) and [Electron](https://www.electronjs.org) for Windows (`desktop/`). The Android app allows plain `http://` so it can reach the ESP32 on the local network.
 
