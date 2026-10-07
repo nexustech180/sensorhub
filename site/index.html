@@ -148,10 +148,10 @@
       <h2>Connect to the GOLD-VAR system</h2>
       <div class="card">
         <div class="flow" aria-label="How data flows">
-          <span>Sensor nodes</span><b>→ radio →</b><span>Arduino Mega</span><b>→</b><span>ESP32</span><b>→ WiFi →</b><span>This app</span>
+          <span>Sensor nodes</span><b>→ radio →</b><span>Arduino Mega</span><b>→</b><span>ESP8266</span><b>→ WiFi →</b><span>This app</span>
         </div>
         <ol style="margin-top:16px">
-          <li>Connect your phone or PC to the <strong>same WiFi or phone hotspot</strong> as the ESP32. If the ESP32 can't find your WiFi, it makes its own hotspot, <code>GOLD-VAR</code> (password <code>goldvar123</code>).</li>
+          <li>Connect your phone or PC to the <strong>same WiFi or phone hotspot</strong> as the ESP8266. If the ESP8266 can't find your WiFi, it makes its own hotspot, <code>GOLD-VAR</code> (password <code>goldvar123</code>).</li>
           <li>Read the address on the Mega's screen, page 4, for example <code>IP: 192.168.43.120</code>.</li>
           <li>In the app, open <strong>Settings</strong>, turn <strong>Demo mode</strong> off, enter that address under <strong>ESP32 sensor board</strong> and click <strong>Test connection</strong>.</li>
         </ol>
@@ -164,8 +164,8 @@
         <a class="link" href="https://github.com/nexustech180/sensorhub/releases"><strong>All releases</strong><small>Every version of the apps</small></a>
         <a class="link" href="app/"><strong>Web demo</strong><small>Try the dashboard in your browser</small></a>
         <a class="link" href="https://github.com/nexustech180/sensorhub"><strong>Source code</strong><small>GitHub repository</small></a>
-        <a class="link" href="https://github.com/nexustech180/sensorhub#readme"><strong>Setup guide</strong><small>Wiring, ESP32 setup, data format</small></a>
-        <a class="link" href="https://github.com/nexustech180/sensorhub/blob/main/firmware/esp32_wifi_gateway/esp32_wifi_gateway.ino"><strong>ESP32 gateway firmware</strong><small>Arduino sketch for the ESP32</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub#readme"><strong>Setup guide</strong><small>Wiring, ESP8266 setup, data format</small></a>
+        <a class="link" href="https://github.com/nexustech180/sensorhub/blob/main/firmware/esp8266_wifi_gateway/esp8266_wifi_gateway.ino"><strong>ESP8266 gateway firmware</strong><small>Arduino sketch for the ESP8266</small></a>
         <a class="link" href="https://github.com/nexustech180/sensorhub/issues"><strong>Report a problem</strong><small>Open an issue on GitHub</small></a>
       </div>
     </section>

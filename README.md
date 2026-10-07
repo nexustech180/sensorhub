@@ -4,7 +4,7 @@ A dashboard app for the GOLD-VAR system: an **ESP32 gateway** (or sensor board) 
 
 ## Install it
 
-**Android:** download **`GoldVarSensorHub.apk`** from this repository's **Releases** page, open it on the phone, and allow **Install unknown apps** when asked. One APK works on 32-bit and 64-bit phones. The phone must be on the same WiFi or hotspot as the ESP32.
+**Android:** download **`GoldVarSensorHub.apk`** from this repository's **Releases** page, open it on the phone, and allow **Install unknown apps** when asked. One APK works on 32-bit and 64-bit phones. The phone must be on the same WiFi or hotspot as the ESP8266 gateway.
 
 **Windows:** download **`GoldVarSensorHub-64bit.exe`** (almost all PCs) or **`GoldVarSensorHub-32bit.exe`** (32-bit Windows) from **Releases** and run it; no installation is needed. The 32-bit build uses Electron 43, the newest Electron with 32-bit Windows support. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
 
@@ -21,7 +21,7 @@ git push origin v0.3.0
 
 Raise `version` in `package.json` and `desktop/package.json` first, so the apps show the new version.
 
-Both apps are the same `index.html`, `css/` and `js/`: wrapped with [Capacitor](https://capacitorjs.com) for Android (`capacitor.config.json`) and [Electron](https://www.electronjs.org) for Windows (`desktop/`). The Android app allows plain `http://` so it can reach the ESP32 on the local network.
+Both apps are the same `index.html`, `css/` and `js/`: wrapped with [Capacitor](https://capacitorjs.com) for Android (`capacitor.config.json`) and [Electron](https://www.electronjs.org) for Windows (`desktop/`). The Android app allows plain `http://` so it can reach the ESP8266 gateway on the local network.
 
 ## Screens
 
@@ -40,35 +40,44 @@ Both apps are the same `index.html`, `css/` and `js/`: wrapped with [Capacitor](
 
 Your computer must be on the same Wi-Fi network as the boards. If Chrome asks whether to allow access to devices on your local network, click **Allow**.
 
-## GOLD-VAR system (Arduino Mega + ESP32 gateway)
+## GOLD-VAR system (Arduino Mega + ESP8266 gateway)
 
-In the full GOLD-VAR system, the Arduino Mega stays the master controller and an **ESP32 DevKit** connects it to Wi-Fi:
+In the full GOLD-VAR system, the Arduino Mega stays the master controller and an **ESP8266** board (ESP8266MOD / ESP-12, such as a NodeMCU or Wemos D1 mini) connects it to Wi-Fi:
 
 ```
-Nano nodes ──nRF24──► Mega 2560 ──Serial3──► ESP32 gateway ──Wi-Fi / phone hotspot──► Sensor Hub
+Nano nodes ──nRF24──► Mega 2560 ──Serial3──► ESP8266 gateway ──Wi-Fi / phone hotspot──► Sensor Hub
 ```
 
-1. Open `firmware/esp32_wifi_gateway/esp32_wifi_gateway.ino`. Type your Wi-Fi or phone-hotspot name and password at the top. In the Arduino IDE, select **Tools → Board → ESP32 Dev Module**, then click Upload. No extra libraries are needed.
-2. Wire the Mega to the ESP32 (**common GND is required**):
+1. **Board package (once):**
+   - In the Arduino IDE, add `https://arduino.esp8266.com/stable/package_esp8266com_index.json` under **File → Preferences → Additional boards manager URLs**.
+   - In **Boards Manager**, install **"esp8266 by ESP8266 Community"**. No extra libraries are needed.
+2. **Upload the sketch:**
+   - Open `firmware/esp8266_wifi_gateway/esp8266_wifi_gateway.ino` and type your Wi-Fi or phone-hotspot name and password at the top.
+   - Select **Tools → Board → ESP8266 Boards → NodeMCU 1.0 (ESP-12E Module)**. Use **LOLIN(WEMOS) D1 R2 & mini** for a D1 mini, or **Generic ESP8266 Module** for a bare module.
+   - Choose the COM port and click **Upload**. Upload with the Mega wires on D7/D8 disconnected if the upload fails.
+3. **Wire the Mega to the ESP8266** (**common GND is required**):
 
-   | Mega 2560 | ESP32 DevKit | Note |
+   | Mega 2560 | ESP8266 | Note |
    |---|---|---|
-   | TX3 (D14) | GPIO16 | through a **1 kΩ / 2 kΩ divider**: Mega TX3 to 1 kΩ to GPIO16, and GPIO16 to 2 kΩ to GND. This turns 5 V into 3.3 V. |
-   | RX3 (D15) | GPIO17 | direct |
+   | TX3 (D14) | **D7** (GPIO13) | through a **1 kΩ / 2 kΩ divider**: Mega TX3 to 1 kΩ to D7, and D7 to 2 kΩ to GND. This turns 5 V into 3.3 V. |
+   | RX3 (D15) | **D8** (GPIO15) | direct. Optional: lets the Mega's LCD show the IP address. |
    | GND | GND | |
 
-   Power the ESP32 from USB or from 5 V into VIN.
-3. Connect your phone or laptop to the **same Wi-Fi or hotspot**. Read the IP address on the Mega's LCD (page 4, `IP: …`) or in the ESP32's Serial Monitor. Type it into **Settings → ESP32 sensor board** and turn **Demo mode** off.
+   **Don't use the pins marked RX/TX:** those are for USB. After start-up, the sketch moves its serial port to D7/D8.
+
+   Power the board from USB or from 5 V into VIN, not from the Mega's 3.3 V pin (the ESP8266 draws up to ~300 mA).
+4. **Connect the app:** put your phone or laptop on the **same Wi-Fi or hotspot**. Read the IP address on the Mega's LCD (page 4, `IP: …`), then type it into **Settings → ESP32 sensor board** and turn **Demo mode** off.
 
 Notes:
-- **Use a 2.4 GHz network.** The ESP32 can't join 5 GHz networks. On an iPhone, turn on **Maximize Compatibility** in the hotspot settings.
-- **Backup hotspot:** if your Wi-Fi isn't found within 30 seconds, the ESP32 starts its own hotspot **`GOLD-VAR`** (password `goldvar123`). Join it and use the address `192.168.4.1`. The LCD then shows `AP: 192.168.4.1`. Restart the ESP32 to try your own Wi-Fi again.
+- **Status page:** open `http://<IP>/` in a browser. It shows whether data is arriving from the Mega, the Wi-Fi status, the address and the last line received. The serial port is used for the Mega, so the Serial Monitor only shows a short start-up message.
+- **Use a 2.4 GHz network.** The ESP8266 can't join 5 GHz networks. On an iPhone, turn on **Maximize Compatibility** in the hotspot settings.
+- **Backup hotspot:** if your Wi-Fi isn't found within 30 seconds, the ESP8266 starts its own hotspot **`GOLD-VAR`** (password `goldvar123`). Join it and use the address `192.168.4.1`. The LCD then shows `AP: 192.168.4.1`. Restart the ESP8266 to try your own Wi-Fi again.
 - **Address on most laptops:** `goldvar.local` usually works instead of the IP address.
 - **Alarm colours match the Mega:** the dashboard shows the Mega's own NORMAL / WARNING / DANGER decision for each node.
 
 ### Changing the Mega or node code
 
-The ESP32 is a **pass-through**. It accepts any readable text line from the Mega and shows the lines from the last 5 seconds at `/data`, newest first. You can change the Mega and node code freely without re-flashing the ESP32.
+The ESP8266 is a **pass-through**. It accepts any readable text line from the Mega and shows the lines from the last 5 seconds at `/data`, newest first. You can change the Mega and node code freely without re-flashing the ESP8266.
 
 The easiest format for the Mega to print, one line per second, is:
 
@@ -92,7 +101,7 @@ How it works:
 - **Only unreadable items are sent to Google:** unreadable lines, and names that would otherwise show as *Unclassified*. Everything the reader understands never leaves the device.
 - **Each answer is saved on the device as a rule.** Lines are matched with their numbers ignored, so `NODE 3 SHAKING level 87` and `NODE 3 SHAKING level 12` share one rule. After learning, everything works instantly and offline.
 - **It needs internet only when something new appears.** It makes at most 20 requests per hour per device, and pauses 15 minutes if Google's free limit is reached.
-- **Test Gemini** (Settings → AI helper) first checks within 6 seconds that the device can reach Google (if not, it says so and points to the usual cause: a WiFi without internet, such as the ESP32's `GOLD-VAR` hotspot), then sends one small real request and shows whether the key and model work. It learns nothing and counts toward the hourly limit.
+- **Test Gemini** (Settings → AI helper) first checks within 6 seconds that the device can reach Google (if not, it says so and points to the usual cause: a WiFi without internet, such as the gateway's `GOLD-VAR` hotspot), then sends one small real request and shows whether the key and model work. It learns nothing and counts toward the hourly limit.
 - In **Settings → Detected sensors**, sensors typed by the AI show an **AI 92%** badge: Gemini's confidence, with its reason when you hover. Rules learned by older versions show just **AI**.
 - To reset it, use **Forget learned rules**. To correct a single sensor, use **Settings → Detected sensors**. Your manual choice always wins over the AI's.
 
@@ -107,7 +116,7 @@ About the key being public:
 - **Notifications:** switch on **Settings → Phone / desktop notifications** and press **Send test notification**. On Android they use the system notification area (Capacitor Local Notifications, channel "Sensor alerts"); Android 13+ asks for permission once. They fire while the app is in the background. Android may pause apps that stay in the background with the screen off for a long time, so for round-the-clock monitoring keep the app open or exclude it from battery optimisation.
 - **AI key:** inserted into the apps at build time from the `GEMINI_API_KEY` secret (see above).
 - **Android settings already in place:**
-  - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP32 on the local network.
+  - The app runs on an `http://` scheme and allows plain HTTP (`usesCleartextTraffic`), so it can reach the ESP8266 gateway on the local network.
   - `goldvar.local` usually doesn't resolve on phones, so use the IP address shown on the Mega's LCD (page 4).
 - **Neither app is published on a store.** The APK is signed with the project's own permanent key (see below) and installs directly from the file. The EXE is a portable program that Windows SmartScreen may warn about the first time.
 
