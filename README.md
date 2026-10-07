@@ -69,7 +69,7 @@ Nano nodes ──nRF24──► Mega 2560 ──Serial3──► ESP8266 gateway
 4. **Connect the app:** put your phone or laptop on the **same Wi-Fi or hotspot**. Read the IP address on the Mega's LCD (page 4, `IP: …`), then type it into **Settings → ESP32 sensor board** and turn **Demo mode** off.
 
 Notes:
-- **Status page:** open `http://<IP>/` in a browser. It shows whether data is arriving from the Mega, the Wi-Fi status, the address and the last line received. The serial port is used for the Mega, so the Serial Monitor only shows a short start-up message.
+- **Status page:** open `http://<IP>/` in a browser. It shows whether data is arriving from the Mega, the Wi-Fi status, the address and the last line received. At start-up the Serial Monitor (115200 baud) shows the IP address once WiFi connects; after that the serial port is used for the Mega.
 - **Use a 2.4 GHz network.** The ESP8266 can't join 5 GHz networks. On an iPhone, turn on **Maximize Compatibility** in the hotspot settings.
 - **Backup hotspot:** if your Wi-Fi isn't found within 30 seconds, the ESP8266 starts its own hotspot **`GOLD-VAR`** (password `goldvar123`). Join it and use the address `192.168.4.1`. The LCD then shows `AP: 192.168.4.1`. Restart the ESP8266 to try your own Wi-Fi again.
 - **Address on most laptops:** `goldvar.local` usually works instead of the IP address.

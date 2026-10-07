@@ -10,7 +10,8 @@
  * Gold Var Sensor Hub works out what the text means, so you can change the Mega and
  * node code freely - this ESP8266 never needs re-flashing.
  *
- * Open http://<ESP-IP>/ in a browser for a status page (instead of the Serial Monitor).
+ * At start-up the Serial Monitor (115200 baud) shows the IP address. After that,
+ * open http://<ESP-IP>/ in a browser for a status page (instead of the Serial Monitor).
  *
  * WiFi: joins your WiFi or phone hotspot (2.4 GHz). If it is not found within 30 s,
  * the ESP8266 starts its OWN hotspot "GOLD-VAR" (password goldvar123); then use
@@ -243,15 +244,37 @@ void setup() {
   Serial.setRxBufferSize(1024);
   Serial.println();
   Serial.println(F("=== GOLD-VAR ESP8266 WIFI GATEWAY ==="));
-  Serial.println(F("Serial now moves to GPIO13/GPIO15 (D7/D8) for the Mega."));
-  Serial.println(F("Open http://<this board's IP>/ in a browser for the status page."));
-  Serial.flush();
-  Serial.swap();   // UART0 -> RX on GPIO13 (D7), TX on GPIO15 (D8)
 
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  // Wait (up to 20 s) for the WiFi so the real IP address can be shown in the
+  // Serial Monitor (set it to 115200 baud) before the serial port moves to D7/D8.
+  Serial.print(F("Connecting to WiFi \""));
+  Serial.print(WIFI_SSID);
+  Serial.print(F("\" "));
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) {
+    delay(500);
+    Serial.print('.');
+  }
+  Serial.println();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(F("Connected! IP address: "));
+    Serial.println(WiFi.localIP());
+    Serial.print(F("Status page:  http://"));
+    Serial.print(WiFi.localIP());
+    Serial.println('/');
+    Serial.println(F("Enter this IP address in Gold Var Sensor Hub (Settings)."));
+  } else {
+    Serial.println(F("WiFi not found yet (check name/password, 2.4 GHz). Still trying;"));
+    Serial.println(F("after 30 s it starts its own WiFi \"GOLD-VAR\" (password goldvar123), IP 192.168.4.1."));
+  }
+  Serial.println(F("Serial now moves to D7/D8 for the Mega, so this window goes quiet."));
+  Serial.flush();
+  Serial.swap();   // UART0 -> RX on GPIO13 (D7), TX on GPIO15 (D8)
 
   server.on("/data", HTTP_GET, handleData);
   server.on("/data", HTTP_OPTIONS, handleOptions);
