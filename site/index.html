@@ -86,6 +86,20 @@
 
   footer { color: var(--muted); font-size: 14px; padding: 40px 0 48px; }
   @media (max-width: 480px) { header { padding-top: 36px; } .card { padding: 18px; } }
+  .code-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 8px; }
+  .code-head strong { font-size: 15px; overflow-wrap: anywhere; }
+  .code-actions { display: flex; gap: 8px; }
+  .btn-sm {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface-2);
+    color: var(--text); border-radius: 10px; padding: 8px 14px; font: 600 14px system-ui, sans-serif; cursor: pointer; text-decoration: none;
+  }
+  .btn-sm:hover { border-color: var(--accent); }
+  pre.code {
+    margin: 0; max-height: 460px; overflow: auto; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    color: var(--text); white-space: pre; tab-size: 2;
+  }
+  .note { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
 </style>
 </head>
 <body>
@@ -158,6 +172,29 @@
       </div>
     </section>
 
+    <section id="esp8266-code">
+      <h2>ESP8266 gateway code</h2>
+      <div class="card">
+        <p style="margin:0 0 12px">This sketch runs on the ESP8266 (ESP8266MOD / ESP-12, such as a NodeMCU or Wemos D1 mini). It passes the Mega's readings to the app over WiFi. No extra libraries are needed.</p>
+        <ol>
+          <li>In the Arduino IDE, open <strong>File → Preferences</strong> and add this to <strong>Additional boards manager URLs</strong>:<br><code>https://arduino.esp8266.com/stable/package_esp8266com_index.json</code></li>
+          <li>In <strong>Boards Manager</strong>, install <strong>esp8266 by ESP8266 Community</strong>.</li>
+          <li>Select <strong>NodeMCU 1.0 (ESP-12E Module)</strong> (or <strong>LOLIN(WEMOS) D1 R2 &amp; mini</strong>, or <strong>Generic ESP8266 Module</strong>) and the COM port.</li>
+          <li>Copy the code below into a new sketch, type your WiFi or hotspot name and password at the top, and click <strong>Upload</strong>.</li>
+          <li>Wire it to the Mega: <strong>Mega TX3 (14) → 1 kΩ/2 kΩ divider → D7</strong>, <strong>Mega RX3 (15) → D8</strong>, and <strong>GND → GND</strong>. Don't use the pins marked RX/TX.</li>
+        </ol>
+        <div class="code-head">
+          <strong>esp8266_wifi_gateway.ino</strong>
+          <div class="code-actions">
+            <button class="btn-sm" id="copy-code" type="button">Copy code</button>
+            <a class="btn-sm" id="dl-code" href="firmware/esp8266_wifi_gateway.ino" download="esp8266_wifi_gateway.ino">Download</a>
+          </div>
+        </div>
+        <pre class="code" id="code-view" tabindex="0" aria-label="ESP8266 gateway code">Loading code…</pre>
+        <p class="note">After uploading, open <code>http://&lt;ESP-IP&gt;/</code> in a browser to see the gateway's status page.</p>
+      </div>
+    </section>
+
     <section>
       <h2>Links</h2>
       <div class="links">
@@ -175,6 +212,34 @@
     </footer>
   </div>
 
+<script>
+  // Show the ESP8266 sketch (published next to this page from firmware/ in the repo)
+  (async () => {
+    const view = document.getElementById('code-view');
+    const copyBtn = document.getElementById('copy-code');
+    const RAW = 'https://raw.githubusercontent.com/nexustech180/sensorhub/main/firmware/esp8266_wifi_gateway/esp8266_wifi_gateway.ino';
+    let code = '';
+    for (const url of ['firmware/esp8266_wifi_gateway.ino', RAW]) {
+      try {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (res.ok) { code = await res.text(); break; }
+      } catch { /* try the next source */ }
+    }
+    view.textContent = code || 'Could not load the code here. Use the "ESP8266 gateway firmware" link below.';
+    copyBtn.disabled = !code;
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(code);
+      } catch {
+        const range = document.createRange(); range.selectNodeContents(view);
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        document.execCommand('copy'); sel.removeAllRanges();
+      }
+      copyBtn.textContent = 'Copied ✓';
+      setTimeout(() => { copyBtn.textContent = 'Copy code'; }, 2000);
+    });
+  })();
+</script>
 <script>
   // On a 32-bit Windows PC, put the 32-bit download first. Detection is best-effort;
   // both buttons are always shown.

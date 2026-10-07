@@ -28,9 +28,10 @@ jobs:
 
       - name: Assemble the site
         run: |
-          mkdir -p _site/app
+          mkdir -p _site/app _site/firmware
           cp -r site/. _site/
           cp -r index.html css js _site/app/
+          cp firmware/esp8266_wifi_gateway/esp8266_wifi_gateway.ino _site/firmware/
 
       - uses: actions/configure-pages@v6
 
