@@ -110,6 +110,12 @@ About the key being public:
 - **On Gemini's free tier, Google may use what is sent to improve its products.** Here that is only the unreadable sensor text.
 - **The rest of the dashboard never depends on the AI helper.** With no key, or a disabled one, everything else works normally.
 
+## Open the app from a link
+
+Share **https://nexustech180.github.io/sensorhub/open/** to open the installed app directly. It works in Chrome or Edge on Android and Windows, and goes to the download page if the app isn't installed. Add `?to=live`, `?to=db` or `?to=settings` to open that page.
+
+The apps also answer `goldvar://` links: `goldvar://open`, `goldvar://live`, `goldvar://db`, `goldvar://settings`. On Windows, start the app once after downloading it so Windows knows where it is (again if you move the .exe).
+
 ## App notes (Android .apk and Windows .exe)
 
 - **One code base:** the apps bundle the same `index.html`, `css/` and `js/`, with relative paths and no server needed. Android uses Capacitor; Windows uses Electron.

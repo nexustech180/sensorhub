@@ -3,7 +3,24 @@
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 
-function createWindow() {
+// "Open in app" links: goldvar://open opens this app, goldvar://live (db, settings, home) opens that page.
+const SCHEME = 'goldvar';
+const PAGES = ['home', 'live', 'db', 'settings'];
+const pageFromArgs = argv => {
+  const url = argv.find(a => a.toLowerCase().startsWith(SCHEME + '://'));
+  const m = url && /^goldvar:\/\/\/?([a-z]*)/i.exec(url);
+  const page = m && m[1].toLowerCase();
+  return PAGES.includes(page) ? page : null;
+};
+
+function registerScheme() {
+  if (!app.isPackaged) return;   // only the built .exe registers itself
+  // The portable .exe unpacks to a temp folder on each start; register the real .exe instead.
+  const exe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+  app.setAsDefaultProtocolClient(SCHEME, exe, []);
+}
+
+function createWindow(page) {
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -12,7 +29,7 @@ function createWindow() {
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  win.loadFile(path.join(__dirname, 'www', 'index.html'));
+  win.loadFile(path.join(__dirname, 'www', 'index.html'), page ? { hash: '/' + page } : {});
 
   // Links that open a new window (e.g. a camera URL) go to the normal web browser
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -25,10 +42,18 @@ function createWindow() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  // A link clicked while the app is already open arrives here
+  app.on('second-instance', (_e, argv) => {
     const [win] = BrowserWindow.getAllWindows();
-    if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    const page = pageFromArgs(argv);
+    if (page) win.webContents.executeJavaScript(`location.hash = ${JSON.stringify('#/' + page)}`).catch(() => {});
   });
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    registerScheme();
+    createWindow(pageFromArgs(process.argv));
+  });
   app.on('window-all-closed', () => app.quit());
 }
