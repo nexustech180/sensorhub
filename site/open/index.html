@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Gold Var Sensor Hub</title>
+<meta name="description" content="Opens the Gold Var Sensor Hub app. If it isn't installed, links to the download page.">
+<style>
+  :root {
+    --bg: #f6f7f4; --surface: #ffffff; --text: #1c2119; --muted: #5d6656; --line: #dde1d6;
+    --accent: #b8860b; --accent-ink: #ffffff; --surface-2: #eef0ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12140f; --surface: #1a1d16; --text: #ecefe6; --muted: #a2ab98; --line: #2e3327;
+      --accent: #e0b43c; --accent-ink: #1a1505; --surface-2: #22261d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+    background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 26px 22px; text-align: center; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+  .btn { display: block; text-decoration: none; font-weight: 700; border-radius: 12px; padding: 13px 16px;
+    background: var(--accent); color: var(--accent-ink); }
+  .btn.alt { margin-top: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); font-weight: 600; }
+  .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  small { display: block; margin-top: 14px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>Gold Var Sensor Hub</h1>
+    <p id="msg">Opening the app…</p>
+    <a class="btn" id="open" href="goldvar://open">Open the app</a>
+    <a class="btn alt" id="get" href="../">Not installed? Download it</a>
+    <small id="hint">If nothing happens, open this link in Chrome or Edge, or install the app first.</small>
+  </main>
+<script>
+  // Hands off to the installed app through its goldvar:// link.
+  // ?to=live (or db, settings, home) opens that page of the app.
+  (() => {
+    const PAGES = ['home', 'live', 'db', 'settings'];
+    const to = (new URLSearchParams(location.search).get('to') || '').toLowerCase();
+    const page = PAGES.includes(to) ? to : 'open';
+    const download = new URL('../', location.href).href;
+    const ua = navigator.userAgent;
+    const open = document.getElementById('open'), msg = document.getElementById('msg');
+    let target;
+    if (/Android/i.test(ua)) {
+      // Chrome on Android: opens the app, or goes to the download page if it isn't installed
+      target = `intent://${page}#Intent;scheme=goldvar;package=com.goldvar.sensorhub;` +
+        `S.browser_fallback_url=${encodeURIComponent(download)};end`;
+    } else if (/Windows/i.test(ua)) {
+      target = `goldvar://${page}`;
+      msg.textContent = 'Your browser will ask to open Gold Var Sensor Hub. Start the app once after downloading it so links work.';
+    } else {
+      msg.textContent = 'The app is available for Android and Windows.';
+      open.hidden = true;
+      document.getElementById('hint').hidden = true;
+      return;
+    }
+    open.href = target;
+    location.href = target;
+  })();
+</script>
+</body>
+</html>

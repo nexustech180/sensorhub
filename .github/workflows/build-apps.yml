@@ -57,6 +57,9 @@ jobs:
           grep -q 'usesCleartextTraffic="true"' "$M"
           echo "Cleartext HTTP enabled in $M"
 
+      - name: Open the app from goldvar:// links
+        run: node scripts/add-deep-link.js android/app/src/main/AndroidManifest.xml
+
       - name: Sync web files and settings
         run: npx cap sync android
 

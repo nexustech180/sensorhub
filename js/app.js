@@ -254,6 +254,25 @@ const NativeNotes = NativePlugins?.LocalNotifications || null;
 let appInFront = true;
 let noteId = Date.now() % 1000000000;
 
+/* ---------------- "open in app" links ----------------
+ * goldvar://open opens the app; goldvar://live, goldvar://db, goldvar://settings open that page.
+ * Android: Capacitor's App plugin delivers the link. Windows: desktop/main.js switches the page. */
+function openDeepLink(url) {
+  const m = /^goldvar:\/\/\/?([a-z]*)/i.exec(String(url || ''));
+  if (!m) return;
+  const page = m[1].toLowerCase();
+  if (ROUTES.includes(page)) location.hash = '#/' + page;
+}
+
+function initDeepLinks() {
+  const App = NativePlugins?.App;
+  if (!App) return;
+  try {
+    App.addListener('appUrlOpen', e => openDeepLink(e.url));
+    App.getLaunchUrl?.().then(r => r && openDeepLink(r.url)).catch(() => {});
+  } catch { /* plugin missing */ }
+}
+
 async function initSystemNotifications() {
   if (!NativeNotes) return;
   try { NativePlugins.App?.addListener('appStateChange', st => { appInFront = st.isActive; }); } catch { /* plugin missing */ }
@@ -1063,6 +1082,7 @@ async function init() {
   await loadDemoVideo();
   configureAi();
   await initSystemNotifications();
+  initDeepLinks();
   bind();
   $('#pill-demo').hidden = !settings.demo;
   updateBell();
