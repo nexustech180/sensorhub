@@ -13,8 +13,25 @@ const pageFromArgs = argv => {
   return PAGES.includes(page) ? page : null;
 };
 
+// macOS hands links to the app through 'open-url' (registered in Info.plist by the build).
+// It can fire before the window exists, so remember the page until then.
+let pendingPage = null;
+const openPage = page => {
+  const [win] = BrowserWindow.getAllWindows();
+  if (!win) { pendingPage = page; return; }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  if (page) win.webContents.executeJavaScript(`location.hash = ${JSON.stringify('#/' + page)}`).catch(() => {});
+};
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  openPage(pageFromArgs([url]));
+});
+
 function registerScheme() {
-  if (!app.isPackaged) return;   // only the built .exe registers itself
+  // Windows only: macOS reads the scheme from Info.plist. Only the built .exe registers itself.
+  if (process.platform !== 'win32' || !app.isPackaged) return;
   // The portable .exe unpacks to a temp folder on each start; register the real .exe instead.
   const exe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
   app.setAsDefaultProtocolClient(SCHEME, exe, []);
@@ -43,17 +60,11 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   // A link clicked while the app is already open arrives here
-  app.on('second-instance', (_e, argv) => {
-    const [win] = BrowserWindow.getAllWindows();
-    if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    const page = pageFromArgs(argv);
-    if (page) win.webContents.executeJavaScript(`location.hash = ${JSON.stringify('#/' + page)}`).catch(() => {});
-  });
+  app.on('second-instance', (_e, argv) => openPage(pageFromArgs(argv)));
   app.whenReady().then(() => {
     registerScheme();
-    createWindow(pageFromArgs(process.argv));
+    createWindow(pendingPage || pageFromArgs(process.argv));
+    pendingPage = null;
   });
   app.on('window-all-closed', () => app.quit());
 }
