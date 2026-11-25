@@ -1,14 +1,15 @@
 {
   "name": "gold-var-sensor-hub-desktop",
   "productName": "Gold Var Sensor Hub",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "private": true,
-  "description": "Gold Var Sensor Hub for Windows",
+  "description": "Gold Var Sensor Hub for Windows and macOS",
   "author": "GOLD-VAR team",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win portable --x64 --publish never"
+    "dist": "electron-builder --win portable --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never"
   },
   "devDependencies": {
     "electron": "^44.5.1",
@@ -17,11 +18,42 @@
   "build": {
     "appId": "com.goldvar.sensorhub",
     "productName": "Gold Var Sensor Hub",
-    "files": ["main.js", "www/**/*"],
-    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "www/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
       "target": "portable",
       "artifactName": "GoldVarSensorHub-64bit.exe"
+    },
+    "protocols": [
+      {
+        "name": "Gold Var Sensor Hub",
+        "schemes": [
+          "goldvar"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "artifactName": "GoldVarSensorHub-mac.dmg",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false
+    },
+    "dmg": {
+      "title": "Gold Var Sensor Hub"
     }
   }
 }

@@ -8,6 +8,8 @@ A dashboard app for the GOLD-VAR system: an **ESP32 gateway** (or sensor board) 
 
 **Windows:** download **`GoldVarSensorHub-64bit.exe`** (almost all PCs) or **`GoldVarSensorHub-32bit.exe`** (32-bit Windows) from **Releases** and run it; no installation is needed. The 32-bit build uses Electron 43, the newest Electron with 32-bit Windows support. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
 
+**Mac:** download **`GoldVarSensorHub-mac.dmg`** (one file for Apple Silicon and Intel, macOS 12 or newer), open it and drag the app into Applications. The app is signed ad-hoc but not notarized by Apple, so the first time macOS says it can't verify it: click Done, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 or older: right-click the app → Open). If macOS ever reports the app as damaged, run `xattr -dr com.apple.quarantine "/Applications/Gold Var Sensor Hub.app"` in Terminal. To remove the warning for everyone, the app needs an Apple Developer ID (paid Apple Developer Program) and notarization; the build already has the hooks for that.
+
 The app starts in **Demo mode**, so you can see it working with no hardware.
 
 ### Building the apps
@@ -114,7 +116,7 @@ About the key being public:
 
 Share **https://nexustech180.github.io/sensorhub/open/** to open the installed app directly. It works in Chrome or Edge on Android and Windows, and goes to the download page if the app isn't installed. Add `?to=live`, `?to=db` or `?to=settings` to open that page.
 
-The apps also answer `goldvar://` links: `goldvar://open`, `goldvar://live`, `goldvar://db`, `goldvar://settings`. On Windows, start the app once after downloading it so Windows knows where it is (again if you move the .exe).
+The apps also answer `goldvar://` links: `goldvar://open`, `goldvar://live`, `goldvar://db`, `goldvar://settings`. On Windows, start the app once after downloading it so Windows knows where it is (again if you move the .exe). On a Mac, the link works once the app is in Applications.
 
 ## App notes (Android .apk and Windows .exe)
 

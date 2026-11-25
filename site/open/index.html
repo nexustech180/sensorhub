@@ -56,8 +56,11 @@
     } else if (/Windows/i.test(ua)) {
       target = `goldvar://${page}`;
       msg.textContent = 'Your browser will ask to open Gold Var Sensor Hub. Start the app once after downloading it so links work.';
+    } else if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua) && navigator.maxTouchPoints < 2) {
+      target = `goldvar://${page}`;
+      msg.textContent = 'Your browser will ask to open Gold Var Sensor Hub. The app must be in your Applications folder.';
     } else {
-      msg.textContent = 'The app is available for Android and Windows.';
+      msg.textContent = 'The app is available for Android, Windows and Mac.';
       open.hidden = true;
       document.getElementById('hint').hidden = true;
       return;
