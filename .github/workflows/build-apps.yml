@@ -188,10 +188,38 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' "$APP/Contents/Info.plist" | grep -qx goldvar
           ls -l dist/GoldVarSensorHub-mac.dmg
 
+      # Older Macs: Electron 44 needs macOS 13, so older macOS versions get builds on older Electron.
+      # Electron 43 (macOS 12) is still supported; 32 (10.15+) and 26 (10.13+) no longer get security
+      # updates, which is the only way to run on those Macs. Macs older than 11 are all Intel.
+      - name: Build DMGs for older macOS (12, 10.15-11, 10.13-10.14)
+        working-directory: desktop
+        run: |
+          build() {  # electron major, arch flag, file name, output folder, expected minimum macOS
+            V=$(npm view "electron@^$1" version --json | node -e "console.log([].concat(JSON.parse(require('fs').readFileSync(0,'utf8'))).pop())")
+            echo "::group::$3 (Electron $V)"
+            npx electron-builder --mac dmg "$2" --publish never --config.electronVersion="$V" \
+              --config.mac.artifactName="$3" --config.directories.output="dist/$4"
+            APP=$(ls -d dist/$4/mac*/"Gold Var Sensor Hub.app" | head -1)
+            MIN=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")
+            ARCHS=$(lipo -archs "$APP/Contents/MacOS/Gold Var Sensor Hub")
+            echo "$3: Electron $V, macOS $MIN+, $ARCHS"
+            [ "$MIN" = "$5" ] || { echo "::error::$3 expected macOS $5+, got $MIN"; exit 1; }
+            codesign --verify --deep --strict "$APP"
+            ls -l "dist/$4/$3"
+            echo "::endgroup::"
+          }
+          build 43 --universal GoldVarSensorHub-mac-macOS12.dmg macos12 12.0
+          build 32 --universal GoldVarSensorHub-mac-macOS10.15-11.dmg macos10.15 10.15
+          build 26 --x64 GoldVarSensorHub-mac-macOS10.13-10.14.dmg macos10.13 10.13
+
       - uses: actions/upload-artifact@v7
         with:
           name: GoldVarSensorHub-mac
-          path: desktop/dist/GoldVarSensorHub-mac.dmg
+          path: |
+            desktop/dist/GoldVarSensorHub-mac.dmg
+            desktop/dist/macos12/GoldVarSensorHub-mac-macOS12.dmg
+            desktop/dist/macos10.15/GoldVarSensorHub-mac-macOS10.15-11.dmg
+            desktop/dist/macos10.13/GoldVarSensorHub-mac-macOS10.13-10.14.dmg
           if-no-files-found: error
 
   release:
@@ -224,13 +252,22 @@ jobs:
             x64/GoldVarSensorHub-64bit.exe
             ia32/GoldVarSensorHub-32bit.exe
             GoldVarSensorHub-mac.dmg
+            macos12/GoldVarSensorHub-mac-macOS12.dmg
+            macos10.15/GoldVarSensorHub-mac-macOS10.15-11.dmg
+            macos10.13/GoldVarSensorHub-mac-macOS10.13-10.14.dmg
           body: |
             Gold Var Sensor Hub - dashboard for the GOLD-VAR illegal-mining detection system.
 
             **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked. One file works on both 32-bit and 64-bit phones.
             **Windows:** download `GoldVarSensorHub-64bit.exe` (almost all PCs), or `GoldVarSensorHub-32bit.exe` for 32-bit Windows. Run it; no installation needed. If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
             To check: Windows Settings → System → About → System type.
-            **Mac:** download `GoldVarSensorHub-mac.dmg` (Apple Silicon and Intel, macOS 13 Ventura or newer), open it and drag the app to Applications. The first time, macOS says it can't verify the app: click Done, then System Settings → Privacy & Security → **Open Anyway** (on macOS 14 and older: right-click the app → Open). The app isn't notarized by Apple.
+            **Mac:** download the file for your macOS (Apple menu → About This Mac):
+            - macOS 13 Ventura or newer: `GoldVarSensorHub-mac.dmg`
+            - macOS 12 Monterey: `GoldVarSensorHub-mac-macOS12.dmg`
+            - macOS 10.15 Catalina or 11 Big Sur: `GoldVarSensorHub-mac-macOS10.15-11.dmg` (built on Electron 32, which no longer gets security updates)
+            - macOS 10.13 High Sierra or 10.14 Mojave: `GoldVarSensorHub-mac-macOS10.13-10.14.dmg` (Intel Macs; built on Electron 26, which no longer gets security updates)
+
+            Open it and drag the app to Applications. The first time, macOS says it can't verify the app: click Done, then System Settings → Privacy & Security → **Open Anyway** (on macOS 14 and older: right-click the app → Open). The app isn't notarized by Apple.
             **Updating from v0.1.0 on Android:** uninstall the old app once first (the signing key changed); later versions install over it.
 
             Connect the phone or PC to the same WiFi or hotspot as the ESP32, turn Demo mode off in Settings and enter the IP shown on the Mega's LCD (page 4).
