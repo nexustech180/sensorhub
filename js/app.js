@@ -79,11 +79,12 @@ function ingest(payload) {
 function renderReadings() {
   const order = Classifier.GROUP_ORDER;
   const list = [...sensors.values()].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.name.localeCompare(b.name));
-  const label = { ok: 'OK', warn: 'WARNING', crit: 'ALARM' };
+  const label = { ok: 'OK', warn: 'Warning', crit: 'Alarm' };
   $('#readings').innerHTML = list.length
-    ? list.map(s => `<tr class="${s.status}"><td>${esc(s.name)}</td><td>${fmtVal(s.value, s.kind)} ${esc(s.unit)}</td>` +
-        `<td title="${esc(s.reason)}">${label[s.status] || 'OK'}</td></tr>`).join('')
-    : '<tr><td colspan="3">Waiting for data…</td></tr>';
+    ? list.map(s => `<div class="tile ${s.status}" title="${esc(s.reason)}"><div class="name">${esc(s.name)}</div>` +
+        `<div class="value">${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small></div>` +
+        `<span class="badge">${label[s.status] || 'OK'}</span></div>`).join('')
+    : '<p class="waiting">Waiting for data…</p>';
 }
 
 async function poll() {
@@ -91,16 +92,16 @@ async function poll() {
   const status = $('#mcu-status');
   try {
     if (settings.demo) {
-      status.textContent = 'Demo mode: simulated readings.';
+      status.textContent = 'Simulated readings';
       ingest(Demo.next('random'));
     } else if (!hostOf(settings.mcuIp)) {
-      status.textContent = 'Enter the sensor board IP in Settings below.';
+      status.textContent = 'Set the sensor board IP in Settings';
     } else {
       try {
         ingest(await fetchPayload(mcuUrl()));
-        status.textContent = `Connected to ${mcuUrl()}.`;
+        status.textContent = `Live from ${hostOf(settings.mcuIp)}`;
       } catch (e) {
-        status.textContent = `Sensor board not reachable (${mcuUrl()}: ${e.message}). Retrying…`;
+        status.textContent = `Not reachable (${e.message}), retrying…`;
       }
     }
   } catch (e) {
@@ -128,7 +129,7 @@ function startCamera() {
 
   if (settings.demo) {
     cv.hidden = false;
-    $('#cam-status').textContent = 'Demo mode: simulated camera.';
+    $('#cam-status').textContent = 'Simulated feed';
     const ctx = cv.getContext('2d');
     let last = 0;
     const draw = now => {
@@ -142,12 +143,13 @@ function startCamera() {
     return;
   }
   if (!hostOf(settings.camIp)) {
-    $('#cam-status').textContent = 'Enter the camera IP in Settings below.';
+    $('#cam-status').textContent = '';
+    camMessage('Set the camera IP in Settings');
     return;
   }
 
   const stream = camUrl(settings.camStream);
-  $('#cam-status').textContent = `Camera: ${stream}`;
+  $('#cam-status').textContent = hostOf(settings.camIp);
   img.hidden = false;
   img.onload = () => { if (img.src !== BLANK) camMessage(''); };
   img.onerror = () => startSnapshots();
@@ -160,14 +162,14 @@ function startSnapshots() {
   img.onload = img.onerror = null;
   img.src = BLANK;   // close the stream connection
   const url = camUrl(settings.camCapture);
-  $('#cam-status').textContent = `Camera (snapshots): ${url}`;
+  $('#cam-status').textContent = `${hostOf(settings.camIp)} · snapshots`;
   let fails = 0;
   const tick = () => {
     if (settings.demo) return;
     const probe = new Image();
     probe.onload = () => { fails = 0; img.src = probe.src; img.hidden = false; camMessage(''); camTimer = setTimeout(tick, 150); };
     probe.onerror = () => {
-      if (++fails >= 3) { img.hidden = true; camMessage(`Camera not reachable (${url}). Retrying every 5 seconds…`); }
+      if (++fails >= 3) { img.hidden = true; camMessage(`Camera not reachable at ${url}. Retrying every 5 seconds…`); }
       camTimer = setTimeout(tick, fails >= 3 ? 5000 : 500);
     };
     probe.src = fresh(url);
@@ -176,12 +178,15 @@ function startSnapshots() {
 }
 
 /* ---------------- settings form ---------------- */
+function showMode() { $('#mode').hidden = !settings.demo; }
+
 function bindSettings() {
   $('#s-demo').checked = !!settings.demo;
   $('#s-mcuIp').value = settings.mcuIp || '';
   $('#s-camIp').value = settings.camIp || '';
   $('#s-demo').addEventListener('change', e => {
     settings.demo = e.target.checked;
+    showMode();
     sensors.clear(); renderReadings();
     saveSettings(); poll(); startCamera();
   });
@@ -190,5 +195,6 @@ function bindSettings() {
 }
 
 bindSettings();
+showMode();
 poll();
 startCamera();

@@ -8,29 +8,36 @@
 </head>
 <body>
 
-<h1>Gold Var Sensor Hub</h1>
+<header class="bar">
+  <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6l-9-4z"/><circle cx="12" cy="11.5" r="3.2"/></svg>
+  <h1>Gold Var Sensor Hub</h1>
+  <span class="mode" id="mode" hidden>Demo</span>
+</header>
 
-<h2>Camera</h2>
-<div id="camera">
-  <canvas id="cam-canvas" width="640" height="360" hidden></canvas>
-  <img id="cam-img" alt="Camera picture" hidden>
-  <p id="cam-msg" hidden></p>
-</div>
-<p id="cam-status"></p>
+<main>
+  <section class="card camera-card">
+    <div class="card-head"><h2>Camera</h2><span class="note" id="cam-status"></span></div>
+    <div class="screen" id="camera">
+      <canvas id="cam-canvas" width="640" height="360" hidden></canvas>
+      <img id="cam-img" alt="Camera picture" hidden>
+      <p id="cam-msg" hidden></p>
+    </div>
+  </section>
 
-<h2>Sensors</h2>
-<p id="mcu-status"></p>
-<table>
-  <thead><tr><th>Sensor</th><th>Value</th><th>Status</th></tr></thead>
-  <tbody id="readings"><tr><td colspan="3">Waiting for data…</td></tr></tbody>
-</table>
+  <section class="card">
+    <div class="card-head"><h2>Sensors</h2><span class="note" id="mcu-status"></span></div>
+    <div class="tiles" id="readings"><p class="waiting">Waiting for data…</p></div>
+  </section>
 
-<h2>Settings</h2>
-<form id="settings" onsubmit="return false">
-  <p><label><input type="checkbox" id="s-demo"> Demo mode (simulated readings and camera)</label></p>
-  <p><label>Sensor board IP<br><input type="text" id="s-mcuIp" placeholder="192.168.1.50" autocomplete="off"></label></p>
-  <p><label>Camera IP<br><input type="text" id="s-camIp" placeholder="192.168.1.60" autocomplete="off"></label></p>
-</form>
+  <details class="card settings">
+    <summary><h2>Settings</h2></summary>
+    <form id="settings" onsubmit="return false">
+      <label class="check"><input type="checkbox" id="s-demo"> Demo mode <small>simulated readings and camera</small></label>
+      <label>Sensor board IP<input type="text" id="s-mcuIp" placeholder="192.168.1.50" autocomplete="off"></label>
+      <label>Camera IP<input type="text" id="s-camIp" placeholder="192.168.1.60" autocomplete="off"></label>
+    </form>
+  </details>
+</main>
 
 <script src="js/classifier.js"></script>
 <script src="js/demo.js"></script>
