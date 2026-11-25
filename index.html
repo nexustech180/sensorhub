@@ -39,6 +39,7 @@
 <main>
   <!-- OVERVIEW -->
   <section id="view-home" class="view" hidden>
+    <div class="kpis" id="kpis"></div>
     <div class="ov-grid">
       <section class="panel cam-win">
         <div class="panel-head"><h3>CAM-01 <span class="sub" id="thumb-feed-info">ESP32-CAM</span></h3><a class="head-link" href="#/live">Live view</a></div>
@@ -55,10 +56,18 @@
       </section>
     </div>
 
+    <section class="panel tl-panel">
+      <div class="panel-head"><h3>Event timeline</h3><div class="seg tl-range" role="group" aria-label="Timeline range"><button data-r="900000">15 min</button><button data-r="3600000" class="on">1 h</button><button data-r="21600000">6 h</button><button data-r="86400000">24 h</button></div></div>
+      <div class="timeline" id="tl-home"></div>
+    </section>
+
     <section class="panel log-panel">
       <div class="panel-head">
-        <h3><span class="pulse"></span>Event log</h3>
-        <button class="btn ghost sm" data-action="clear-alerts">Clear</button>
+        <h3>Event log <span class="sub" id="log-count"></span></h3>
+        <div class="row">
+          <div class="seg" id="log-filter" role="group" aria-label="Filter events"><button data-f="all" class="on">All</button><button data-f="crit">Alarms</button><button data-f="warn">Warnings</button><button data-f="info">System</button></div>
+          <button class="btn ghost sm" data-action="clear-alerts">Clear</button>
+        </div>
       </div>
       <div class="log-cols" aria-hidden="true"><span>Time</span><span>Level</span><span>Event</span><span>Age</span></div>
       <ul class="alert-list" id="alert-feed"></ul>
@@ -87,6 +96,10 @@
           <button class="btn" id="btn-overlay" title="Show sensor values on the video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>Sensor overlay: On</button>
           <button class="btn" id="btn-fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>Fullscreen</button>
         </div>
+        <section class="panel tl-panel live-tl">
+          <div class="panel-head"><h3>Event timeline</h3><div class="seg tl-range" role="group" aria-label="Timeline range"><button data-r="900000">15 min</button><button data-r="3600000" class="on">1 h</button><button data-r="21600000">6 h</button><button data-r="86400000">24 h</button></div></div>
+          <div class="timeline" id="tl-live"></div>
+        </section>
       </div>
       <aside class="panel side">
         <div class="panel-head"><h3>Latest readings</h3></div>
