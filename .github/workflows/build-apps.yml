@@ -189,9 +189,9 @@ jobs:
           ls -l dist/GoldVarSensorHub-mac.dmg
 
       # Older Macs: Electron 44 needs macOS 13, so older macOS versions get builds on older Electron.
-      # Electron 43 (macOS 12) is still supported; 32 (10.15+) and 26 (10.13+) no longer get security
-      # updates, which is the only way to run on those Macs. Macs older than 11 are all Intel.
-      - name: Build DMGs for older macOS (12, 10.15-11, 10.13-10.14)
+      # Electron 43 (macOS 12) is still supported; 32 (10.15+) no longer gets security updates,
+      # which is the only way to run on those Macs.
+      - name: Build DMGs for older macOS (12, 10.15-11)
         working-directory: desktop
         run: |
           build() {  # electron major, arch flag, file name, output folder, expected minimum macOS
@@ -210,7 +210,6 @@ jobs:
           }
           build 43 --universal GoldVarSensorHub-mac-macOS12.dmg macos12 12.0
           build 32 --universal GoldVarSensorHub-mac-macOS10.15-11.dmg macos10.15 10.15
-          build 26 --x64 GoldVarSensorHub-mac-macOS10.13-10.14.dmg macos10.13 10.13
 
       - uses: actions/upload-artifact@v7
         with:
@@ -219,7 +218,6 @@ jobs:
             desktop/dist/GoldVarSensorHub-mac.dmg
             desktop/dist/macos12/GoldVarSensorHub-mac-macOS12.dmg
             desktop/dist/macos10.15/GoldVarSensorHub-mac-macOS10.15-11.dmg
-            desktop/dist/macos10.13/GoldVarSensorHub-mac-macOS10.13-10.14.dmg
           if-no-files-found: error
 
   release:
@@ -254,7 +252,6 @@ jobs:
             GoldVarSensorHub-mac.dmg
             macos12/GoldVarSensorHub-mac-macOS12.dmg
             macos10.15/GoldVarSensorHub-mac-macOS10.15-11.dmg
-            macos10.13/GoldVarSensorHub-mac-macOS10.13-10.14.dmg
           body: |
             Gold Var Sensor Hub - dashboard for the GOLD-VAR illegal-mining detection system.
 
@@ -265,7 +262,6 @@ jobs:
             - macOS 13 Ventura or newer: `GoldVarSensorHub-mac.dmg`
             - macOS 12 Monterey: `GoldVarSensorHub-mac-macOS12.dmg`
             - macOS 10.15 Catalina or 11 Big Sur: `GoldVarSensorHub-mac-macOS10.15-11.dmg` (built on Electron 32, which no longer gets security updates)
-            - macOS 10.13 High Sierra or 10.14 Mojave: `GoldVarSensorHub-mac-macOS10.13-10.14.dmg` (Intel Macs; built on Electron 26, which no longer gets security updates)
 
             Open it and drag the app to Applications. The first time, macOS says it can't verify the app: click Done, then System Settings → Privacy & Security → **Open Anyway** (on macOS 14 and older: right-click the app → Open). The app isn't notarized by Apple.
             **Updating from v0.1.0 on Android:** uninstall the old app once first (the signing key changed); later versions install over it.
