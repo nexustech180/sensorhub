@@ -63,7 +63,7 @@ const Demo = (() => {
   return { next: pattern => (pattern === 'scripted' ? scripted() : random()) };
 })();
 
-/* Looping camera feed for demo mode: a user video if configured, else a generated underwater scene. */
+/* Looping camera feed for demo mode: a user video if configured, else a generated night-vision riverbank scene. */
 const DemoFeed = (() => {
   const W = 640, H = 360;
   const canvas = document.createElement('canvas');
@@ -72,12 +72,16 @@ const DemoFeed = (() => {
   let video = null, objectUrl = null, turbidity = 3, label = 'Built-in simulated feed';
   const t0 = performance.now();
 
-  const fish = Array.from({ length: 5 }, (_, i) => ({
-    y: 90 + i * 45 + Math.random() * 20, speed: 30 + Math.random() * 40, size: 10 + Math.random() * 12,
-    offset: Math.random() * 900, dir: i % 2 ? -1 : 1, hue: [28, 45, 200, 350, 15][i],
-  }));
-  const bubbles = Array.from({ length: 26 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: 1 + Math.random() * 3, s: 15 + Math.random() * 30 }));
-  const weeds = Array.from({ length: 9 }, (_, i) => ({ x: 30 + i * 72 + Math.random() * 30, h: 70 + Math.random() * 90, hue: 110 + Math.random() * 40 }));
+  // Night-vision (IR, greyscale) view of a riverbank site, as a fixed surveillance camera sees it.
+  // Seeded so the scenery is the same on every start.
+  let seed = 20261125;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const HORIZON = 172, RIVER_TOP = 196, RIVER_BOT = 262;
+  const hills = Array.from({ length: 17 }, (_, i) => ({ x: i * 40, y: HORIZON - 14 - rnd() * 22 }));
+  const trees = Array.from({ length: 120 }, (_, i) => ({ x: i * 5.6 + rnd() * 5, h: 10 + rnd() * 26, w: 5 + rnd() * 9 }));
+  const ripples = Array.from({ length: 46 }, () => ({ x: rnd() * W, y: RIVER_TOP + 6 + rnd() * (RIVER_BOT - RIVER_TOP - 22), l: 14 + rnd() * 50, s: 5 + rnd() * 9 }));
+  const grass = Array.from({ length: 260 }, () => ({ x: rnd() * W, y: RIVER_BOT + 10 + rnd() * (H - RIVER_BOT - 10), h: 3 + rnd() * 10 }));
+  const rocks = Array.from({ length: 7 }, () => ({ x: rnd() * W, y: RIVER_BOT + 10 + rnd() * 14, r: 3 + rnd() * 6 }));
 
   function setVideo(src, name) {
     if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
@@ -93,67 +97,83 @@ const DemoFeed = (() => {
     label = name || src;
   }
 
-  function scene(t) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#0e5a6e'); g.addColorStop(0.55, '#0a3947'); g.addColorStop(1, '#05161c');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-    // light rays
-    for (let i = 0; i < 5; i++) {
-      const x = 60 + i * 140 + Math.sin(t * 0.3 + i) * 30;
-      ctx.fillStyle = 'rgba(190,240,255,0.05)';
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 140, H); ctx.lineTo(x + 40, H); ctx.fill();
-    }
-
-    // sand
-    ctx.fillStyle = '#4a3f28';
-    ctx.beginPath(); ctx.moveTo(0, H);
-    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, H - 38 - Math.sin(x * 0.02) * 8);
-    ctx.lineTo(W, H); ctx.fill();
-
-    // weeds
-    ctx.lineWidth = 5; ctx.lineCap = 'round';
-    for (const w of weeds) {
-      const sway = Math.sin(t * 1.2 + w.x) * 14;
-      ctx.strokeStyle = `hsl(${w.hue} 45% 30%)`;
-      ctx.beginPath(); ctx.moveTo(w.x, H - 34);
-      ctx.quadraticCurveTo(w.x + sway, H - 34 - w.h / 2, w.x + sway * 1.6, H - 34 - w.h); ctx.stroke();
-    }
-
-    // fish
-    for (const f of fish) {
-      const span = W + 120;
-      let x = ((t * f.speed + f.offset) % span) - 60;
-      if (f.dir < 0) x = W - x;
-      const y = f.y + Math.sin(t * 1.5 + f.offset) * 8;
-      ctx.save(); ctx.translate(x, y); ctx.scale(f.dir, 1);
-      ctx.fillStyle = `hsl(${f.hue} 85% 58%)`;
-      ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.6, f.size * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(-f.size * 1.4, 0); ctx.lineTo(-f.size * 2.4, -f.size * 0.7); ctx.lineTo(-f.size * 2.4, f.size * 0.7); ctx.fill();
-      ctx.fillStyle = '#021'; ctx.beginPath(); ctx.arc(f.size * 0.9, -f.size * 0.2, f.size * 0.14, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-
-    // bubbles
-    ctx.strokeStyle = 'rgba(220,250,255,0.55)'; ctx.lineWidth = 1;
-    for (const b of bubbles) {
-      const y = (b.y - t * b.s) % H;
-      const yy = y < 0 ? y + H : y;
-      ctx.beginPath(); ctx.arc(b.x + Math.sin(t * 2 + b.y) * 3, yy, b.r, 0, Math.PI * 2); ctx.stroke();
-    }
-
-    // murky water when turbidity is high (linked to the demo sensor)
-    const haze = Math.min(0.75, Math.max(0, (turbidity - 2) / 90));
-    if (haze > 0.01) { ctx.fillStyle = `rgba(110,90,50,${haze})`; ctx.fillRect(0, 0, W, H); }
+  // A person walks along the track for ~16 s of every 50 s cycle (something for the camera to "see").
+  function walker(t) {
+    const cycle = 50, walk = 16, p = (t % cycle) / walk;
+    if (p > 1) return;
+    const x = -20 + p * (W + 40), y = 318, step = Math.sin(t * 7);
+    ctx.fillStyle = '#b9bec2'; ctx.strokeStyle = '#b9bec2'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x, y - 33, 4, 0, Math.PI * 2); ctx.fill();          // head
+    ctx.fillRect(x - 4, y - 28, 8, 16);                                          // body
+    ctx.beginPath(); ctx.moveTo(x, y - 13); ctx.lineTo(x + step * 5, y);         // legs
+    ctx.moveTo(x, y - 13); ctx.lineTo(x - step * 5, y);
+    ctx.moveTo(x, y - 25); ctx.lineTo(x - step * 4, y - 15); ctx.stroke();       // arm
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x - 7, y, 14, 2);          // shadow
   }
 
-  function grain() {
-    for (let i = 0; i < 140; i++) {
-      ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.08})`;
-      ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+  function scene(t) {
+    // sky
+    let g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+    g.addColorStop(0, '#2c3033'); g.addColorStop(1, '#4b5154');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, HORIZON + 2);
+
+    // far hills and tree line
+    ctx.fillStyle = '#303537';
+    ctx.beginPath(); ctx.moveTo(0, HORIZON + 4);
+    for (const h of hills) ctx.lineTo(h.x, h.y);
+    ctx.lineTo(W, HORIZON + 4); ctx.fill();
+    ctx.fillStyle = '#1d2123';
+    for (const tr of trees) {
+      ctx.beginPath(); ctx.ellipse(tr.x, HORIZON + 6 - tr.h / 2, tr.w, tr.h / 2 + 3, 0, 0, Math.PI * 2); ctx.fill();
     }
-    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.65);
-    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillRect(0, HORIZON + 2, W, RIVER_TOP - HORIZON);
+
+    // river; it turns lighter and muddier as the demo turbidity sensor rises
+    const mud = Math.min(1, Math.max(0, (turbidity - 2) / 60));
+    const mix = (a, b) => Math.round(a + (b - a) * mud);
+    g = ctx.createLinearGradient(0, RIVER_TOP, 0, RIVER_BOT);
+    g.addColorStop(0, `rgb(${mix(88, 128)},${mix(95, 118)},${mix(98, 100)})`);
+    g.addColorStop(1, `rgb(${mix(58, 104)},${mix(64, 96)},${mix(67, 80)})`);
+    ctx.fillStyle = g; ctx.fillRect(0, RIVER_TOP, W, RIVER_BOT - RIVER_TOP);
+    ctx.lineWidth = 1;
+    for (const r of ripples) {
+      const x = ((r.x + t * r.s) % (W + r.l)) - r.l;
+      ctx.strokeStyle = `rgba(215,222,226,${0.10 + 0.12 * (1 - mud)})`;
+      ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x + r.l, r.y + Math.sin(t + r.x) * 0.6); ctx.stroke();
+    }
+
+    // near bank with a dirt track
+    g = ctx.createLinearGradient(0, RIVER_BOT, 0, H);
+    g.addColorStop(0, '#2b2f31'); g.addColorStop(1, '#1a1d1e');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(0, RIVER_BOT);
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, RIVER_BOT - 2 + Math.sin(x * 0.012) * 3);
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+    ctx.fillStyle = '#3d4244';
+    ctx.beginPath(); ctx.moveTo(0, 312);
+    ctx.bezierCurveTo(W * 0.3, 300, W * 0.6, 326, W, 310); ctx.lineTo(W, 330);
+    ctx.bezierCurveTo(W * 0.6, 344, W * 0.3, 318, 0, 330); ctx.fill();
+    ctx.fillStyle = '#3a3f42';
+    for (const k of rocks) { ctx.beginPath(); ctx.ellipse(k.x, k.y, k.r * 1.4, k.r, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#41474a'; ctx.lineWidth = 1;
+    for (const b of grass) {
+      const sway = Math.sin(t * 1.3 + b.x * 0.05) * 1.5;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + sway, b.y - b.h); ctx.stroke();
+    }
+    walker(t);
+  }
+
+  // sensor noise, slight vignette and scan lines, as on a real low-light camera
+  function grain() {
+    for (let i = 0; i < 900; i++) {
+      const v = Math.random() * 255 | 0;
+      ctx.fillStyle = `rgba(${v},${v},${v},0.06)`;
+      ctx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.7);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   }
 
@@ -168,10 +188,16 @@ const DemoFeed = (() => {
       scene(t);
     }
     grain();
-    ctx.font = '600 13px ui-monospace, Consolas, monospace';
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(10, H - 32, 270, 22);
-    ctx.fillStyle = '#fff'; ctx.fillText('CAM-01  ' + new Date().toLocaleString(), 16, H - 16);
-    ctx.fillStyle = 'rgba(245,158,11,0.9)'; ctx.fillText('DEMO', W - 52, H - 16);
+    // on-screen display, like an NVR: camera name and timestamp burned into the picture
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    ctx.font = '600 12px ui-monospace, Consolas, monospace';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.fillStyle = '#eef0f2';
+    for (const [txt, x] of [['CAM-01 RIVERBANK', 12], [stamp, 12]]) {
+      const y = txt === stamp ? H - 12 : H - 28;
+      ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y);
+    }
+    ctx.fillStyle = '#d8a33a'; ctx.strokeText('SIMULATED', W - 86, H - 12); ctx.fillText('SIMULATED', W - 86, H - 12);
   }
 
   return {
