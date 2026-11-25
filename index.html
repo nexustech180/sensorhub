@@ -9,7 +9,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <a href="#/home" class="brand" aria-label="GOLD-VAR Sensor Hub"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6l-9-4z"/><circle cx="12" cy="11.5" r="3.2"/><path d="M12 5.5v2.6M12 14.9v2.6M6 11.5h2.6M15.4 11.5H18"/></svg><span class="brand-name">GOLD-VAR</span><span class="brand-sub">Sensor Hub</span></a>
+  <a href="#/home" class="brand" aria-label="GOLD-VAR Sensor Hub"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6l-9-4z"/><circle cx="12" cy="11.5" r="3.2"/><path d="M12 5.5v2.6M12 14.9v2.6M6 11.5h2.6M15.4 11.5H18"/></svg><span class="brand-name">GOLD-VAR</span></a>
   <nav class="tabs">
     <a href="#/home" data-route="home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Overview</span></a>
     <a href="#/live" data-route="live"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="1"/></svg><span>Live View</span></a>
@@ -25,51 +25,31 @@
 </header>
 
 <div class="shell">
-<aside class="sidebar" aria-label="Devices and sensors">
-  <div class="sb-sec">
-    <div class="sb-head">Devices</div>
-    <ul class="dev-list" id="sb-devices"></ul>
-  </div>
-  <div class="sb-sec grow">
-    <div class="sb-head">Sensors <span class="sb-count" id="sb-count"></span></div>
-    <div class="sb-sensors" id="sb-sensors"></div>
-  </div>
-</aside>
-
 <main>
   <!-- OVERVIEW -->
   <section id="view-home" class="view" hidden>
     <div class="kpis" id="kpis"></div>
     <div class="ov-grid">
       <section class="panel cam-win">
-        <div class="panel-head"><h3>CAM-01 <span class="sub" id="thumb-feed-info">ESP32-CAM</span></h3><a class="head-link" href="#/live">Live view</a></div>
+        <div class="panel-head"><h3>Camera <span class="sub" id="thumb-feed-info">ESP32-CAM</span></h3><a class="head-link" href="#/live">Live view</a></div>
         <a class="thumb-media" href="#/live" aria-label="Open live view">
           <canvas id="thumb-feed" width="640" height="360"></canvas>
           <img id="thumb-snap" alt="">
           <div class="media-offline" id="thumb-feed-off" hidden><span>Camera offline</span><small></small></div>
-          <span class="badge-live">LIVE</span>
+          <span class="badge-live">Live</span>
         </a>
       </section>
       <section class="panel">
-        <div class="panel-head"><h3>Sensor status <span class="sub" id="thumb-db-info">0 records</span></h3><a class="head-link" href="#/db">Records</a></div>
+        <div class="panel-head"><h3>Sensors <span class="sub" id="thumb-db-info">0 records</span></h3><a class="head-link" href="#/db">Records</a></div>
         <div class="db-preview" id="thumb-db"></div>
       </section>
     </div>
 
-    <section class="panel tl-panel">
-      <div class="panel-head"><h3>Event timeline</h3><div class="seg tl-range" role="group" aria-label="Timeline range"><button data-r="900000">15 min</button><button data-r="3600000" class="on">1 h</button><button data-r="21600000">6 h</button><button data-r="86400000">24 h</button></div></div>
-      <div class="timeline" id="tl-home"></div>
-    </section>
-
     <section class="panel log-panel">
       <div class="panel-head">
-        <h3>Event log <span class="sub" id="log-count"></span></h3>
-        <div class="row">
-          <div class="seg" id="log-filter" role="group" aria-label="Filter events"><button data-f="all" class="on">All</button><button data-f="crit">Alarms</button><button data-f="warn">Warnings</button><button data-f="info">System</button></div>
-          <button class="btn ghost sm" data-action="clear-alerts">Clear</button>
-        </div>
+        <h3>Events</h3>
+        <button class="btn ghost sm" data-action="clear-alerts">Clear</button>
       </div>
-      <div class="log-cols" aria-hidden="true"><span>Time</span><span>Level</span><span>Event</span><span>Age</span></div>
       <ul class="alert-list" id="alert-feed"></ul>
     </section>
   </section>
@@ -96,10 +76,6 @@
           <button class="btn" id="btn-overlay" title="Show sensor values on the video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>Sensor overlay: On</button>
           <button class="btn" id="btn-fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>Fullscreen</button>
         </div>
-        <section class="panel tl-panel live-tl">
-          <div class="panel-head"><h3>Event timeline</h3><div class="seg tl-range" role="group" aria-label="Timeline range"><button data-r="900000">15 min</button><button data-r="3600000" class="on">1 h</button><button data-r="21600000">6 h</button><button data-r="86400000">24 h</button></div></div>
-          <div class="timeline" id="tl-live"></div>
-        </section>
       </div>
       <aside class="panel side">
         <div class="panel-head"><h3>Latest readings</h3></div>
@@ -246,8 +222,6 @@
   <span class="sb-item demo" id="pill-demo" hidden>DEMO MODE</span>
   <span class="pill" id="pill-mcu" title="ESP32 sensor board"><i></i>Sensor board</span>
   <span class="pill" id="pill-cam" title="ESP32-CAM"><i></i>Camera</span>
-  <span class="sb-item" id="sb-records"></span>
-  <span class="sb-item" id="sb-alarms"></span>
   <span class="sb-spacer"></span>
   <span class="sb-item mono" id="sb-clock"></span>
 </footer>
