@@ -1,7 +1,7 @@
 {
   "name": "gold-var-sensor-hub-desktop",
   "productName": "Gold Var Sensor Hub",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Gold Var Sensor Hub for Windows and macOS",
   "author": "GOLD-VAR team",

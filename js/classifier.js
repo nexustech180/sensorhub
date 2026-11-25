@@ -8,16 +8,16 @@
  */
 const Classifier = (() => {
   const GROUPS = {
-    water:       { label: 'Water Quality',       color: '#22d3ee' },
-    proximity:   { label: 'Proximity & Motion',  color: '#a78bfa' },
-    acoustic:    { label: 'Sound & Vibration',   color: '#f472b6' },
-    environment: { label: 'Environment',         color: '#34d399' },
-    power:       { label: 'Power',               color: '#fbbf24' },
-    biometric:   { label: 'Biometric',           color: '#fb7185' },
-    location:    { label: 'Location',            color: '#60a5fa' },
-    digital:     { label: 'Digital I/O',         color: '#94a3b8' },
-    system:      { label: 'Device / System',     color: '#64748b' },
-    other:       { label: 'Unclassified',        color: '#a8a29e' },
+    water:       { label: 'Water Quality',       color: '#4f9fc0' },
+    proximity:   { label: 'Proximity & Motion',  color: '#8d86c4' },
+    acoustic:    { label: 'Sound & Vibration',   color: '#c08463' },
+    environment: { label: 'Environment',         color: '#62a77a' },
+    power:       { label: 'Power',               color: '#c9a443' },
+    biometric:   { label: 'Biometric',           color: '#bd6f78' },
+    location:    { label: 'Location',            color: '#5d8fcf' },
+    digital:     { label: 'Digital I/O',         color: '#8a929b' },
+    system:      { label: 'Device / System',     color: '#6b737c' },
+    other:       { label: 'Unclassified',        color: '#8b867f' },
   };
   const GROUP_ORDER = Object.keys(GROUPS);
 

@@ -50,6 +50,9 @@ function fmtVal(v, kind) {
   return a >= 1000 ? Math.round(v).toLocaleString() : String(Number(v.toFixed(a >= 100 ? 1 : 2)));
 }
 const fmtTime = ts => new Date(ts).toLocaleTimeString();
+const pad2 = n => String(n).padStart(2, '0');
+const fmtStamp = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+const fmtHms = ts => fmtStamp(ts).slice(11);
 function fmtAgo(ts) {
   const s = Math.round((Date.now() - ts) / 1000);
   if (s < 5) return 'just now';
@@ -221,6 +224,7 @@ function setStatus(which, state, detail) {
   pill.className = 'pill ' + ({ on: 'on', off: 'off', demo: 'demo-src' }[state] || '');
   const name = which === 'mcu' ? 'ESP32 sensor board' : 'ESP32-CAM';
   pill.title = `${name}: ${{ on: 'connected', off: 'unreachable' + (detail ? ' (' + detail + ')' : ''), idle: 'no IP set', demo: 'demo mode' }[state]}`;
+  if ($('#sb-devices')) renderShell();
   if (prev === state || state === 'demo' || state === 'idle' || prev === 'demo') return;
   if (state === 'off') {
     const where = which === 'mcu' ? mcuUrl() : hostOf(settings.camIp);
@@ -363,12 +367,28 @@ function updateBell() {
   b.textContent = S.unread > 99 ? '99+' : S.unread;
 }
 
-function alertItems(list) {
-  if (!list.length) return '<li class="empty-li">No notifications yet.</li>';
-  return list.map(a => `<li class="lv-${a.level}"><div><div class="t">${esc(a.title)}</div><div class="m">${esc(a.msg)}</div></div><time title="${esc(new Date(a.ts).toLocaleString())}" data-ts="${a.ts}">${fmtAgo(a.ts)}</time></li>`).join('');
+// Event log time: HH:MM:SS today, otherwise the date as well
+function fmtClock(ts) {
+  const d = new Date(ts), now = new Date();
+  const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return d.toDateString() === now.toDateString() ? t : `${d.toLocaleDateString([], { day: '2-digit', month: 'short' })} ${t.slice(0, 5)}`;
 }
+const LEVEL_TEXT = { info: 'INFO', ok: 'OK', warn: 'WARN', crit: 'ALARM' };
+function alertItems(list) {
+  if (!list.length) return '<li class="empty-li">No events yet.</li>';
+  return list.map(a => `<li class="lv-${a.level}"><time title="${esc(new Date(a.ts).toLocaleString())}">${fmtClock(a.ts)}</time>` +
+    `<span class="lvl">${LEVEL_TEXT[a.level] || 'INFO'}</span>` +
+    `<div class="ev" title="${esc(a.title + (a.msg ? ' — ' + a.msg : ''))}"><span class="t">${esc(a.title)}</span><span class="m">${esc(a.msg)}</span></div>` +
+    `<span class="ago" data-ts="${a.ts}">${fmtAgo(a.ts)}</span></li>`).join('');
+}
+const LOG_FILTER = { all: () => true, crit: a => a.level === 'crit', warn: a => a.level === 'warn', info: a => a.level === 'info' || a.level === 'ok' };
 function renderAlertLists() {
-  if (S.route === 'home') $('#alert-feed').innerHTML = alertItems(S.alerts.slice(0, 40));
+  if (S.route === 'home') {
+    const list = S.alerts.filter(LOG_FILTER[S.logFilter || 'all']);
+    $('#alert-feed').innerHTML = alertItems(list.slice(0, 60));
+    $('#log-count').textContent = `${list.length} event${list.length === 1 ? '' : 's'}`;
+  }
+  renderTimelines();
   if (!$('#drawer').hidden) $('#alert-drawer').innerHTML = alertItems(S.alerts);
 }
 
@@ -387,8 +407,8 @@ function route() {
   $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + S.route; });
   $$('[data-route]').forEach(a => a.classList.toggle('active', a.dataset.route === S.route));
   if (prev === 'live' && S.route !== 'live') stopLive();
-  if (S.route === 'home') { renderHome(); renderAlertLists(); refreshThumbSnap(); }
-  if (S.route === 'live') { startLive(); renderLive(); }
+  if (S.route === 'home') { renderHome(); renderKpis(); renderAlertLists(); refreshThumbSnap(); }
+  if (S.route === 'live') { startLive(); renderLive(); renderTimelines(); }
   if (S.route === 'db') { renderDb(); loadRecords(); }
   if (S.route === 'settings') fillSettings();
   window.scrollTo(0, 0);
@@ -404,7 +424,103 @@ function refreshViews() {
     if (S.route === 'live') renderLive();
     if (S.route === 'db') { renderDb(); if (S.page === 0) loadRecordsSoon(); }
     if (S.route === 'settings') renderSensorTable(false);
+    renderShell();
   });
+}
+
+/* ---------------- side panel & status bar ---------------- */
+function renderShell() {
+  const led = st => ({ on: 'on', off: 'off', demo: 'demo' }[st] || '');
+  const mcuSub = settings.demo ? 'Simulated data' : (hostOf(settings.mcuIp) ? mcuUrl().replace(/^https?:\/\//, '') : 'No IP set');
+  const camSub = demoCam() ? 'Simulated feed' : (hostOf(settings.camIp) || 'No IP set');
+  $('#sb-devices').innerHTML =
+    `<li><span class="led ${led(S.mcu)}"></span>${ICON.chip}<span class="nm">Sensor board</span><span class="sub">${esc(mcuSub)}</span></li>` +
+    `<li><span class="led ${led(S.cam)}"></span>${ICON.cam}<span class="nm">CAM-01</span><span class="sub">${esc(camSub)}</span></li>`;
+  const box = $('#sb-sensors');
+  if (box.dataset.v !== String(S.version)) {
+    const groups = byGroup();
+    box.innerHTML = groups.size ? [...groups].map(([g, list]) =>
+      `<div class="sb-grp" style="--g:${groupColor(g)}">${esc(groupLabel(g))}</div>` +
+      list.map(s => `<a class="sb-row" href="#/db" data-key="${esc(s.key)}" title="${esc(s.key)}"><span class="led"></span><span class="nm">${esc(s.name)}</span><span class="v"></span></a>`).join('')
+    ).join('') : '<div class="sb-empty">Waiting for data…</div>';
+    box.dataset.v = String(S.version);
+    $('#sb-count').textContent = S.sensors.size ? String(S.sensors.size) : '';
+  }
+  for (const row of $$('.sb-row', box)) {
+    const s = S.sensors.get(row.dataset.key);
+    if (!s) continue;
+    row.className = 'sb-row ' + s.status;
+    $('.led', row).className = 'led ' + (s.status === 'ok' ? 'on' : s.status);
+    $('.v', row).innerHTML = `${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small>`;
+  }
+  updateStatusBar();
+}
+
+const ICON = {
+  chip: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>',
+  cam: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="1"/></svg>',
+  dev: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="1"/><path d="M8 21h8M12 17v4"/></svg>',
+  sensor: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  warn: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  alarm: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
+  db: '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/></svg>',
+  log: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+};
+
+/* overview counters, like the summary strip of NVR software */
+function renderKpis() {
+  const list = [...S.sensors.values()];
+  const warn = list.filter(s => s.status === 'warn').length, crit = list.filter(s => s.status === 'crit').length;
+  const devs = [S.mcu, S.cam], up = devs.filter(st => st === 'on' || st === 'demo').length;
+  const today = new Date().toDateString();
+  const events = S.alerts.filter(a => new Date(a.ts).toDateString() === today).length;
+  const k = (cls, icon, val, label, sub) =>
+    `<div class="kpi ${cls}">${icon}<div><b>${val}</b><span>${label}${sub ? ` <em>${sub}</em>` : ''}</span></div></div>`;
+  $('#kpis').innerHTML =
+    k(up === devs.length ? 'ok' : up ? 'warn' : 'crit', ICON.dev, `${up}<small>/${devs.length}</small>`, 'Devices online') +
+    k('', ICON.sensor, S.sensors.size, 'Sensors') +
+    k(warn ? 'warn' : '', ICON.warn, warn, 'Warnings') +
+    k(crit ? 'crit' : '', ICON.alarm, crit, 'Alarms') +
+    k('', ICON.log, events, 'Events today') +
+    k('', ICON.db, S.total.toLocaleString(), 'Records stored');
+}
+
+/* event timeline: a time axis with one marker per event, like an NVR playback bar */
+function renderTimeline(el) {
+  if (!el) return;
+  const range = S.tlRange || 3600000, now = Date.now(), start = now - range;
+  const pos = ts => ((ts - start) / range) * 100;
+  const step = range <= 900000 ? 120000 : range <= 3600000 ? 600000 : range <= 21600000 ? 3600000 : 4 * 3600000;
+  let ticks = '';
+  for (let t = Math.ceil(start / step) * step; t <= now; t += step) {
+    ticks += `<span class="tl-tick" style="left:${pos(t)}%"><i></i>${fmtHms(t).slice(0, 5)}</span>`;
+  }
+  const lanes = { crit: '', warn: '', info: '' };
+  for (const a of S.alerts) {
+    if (a.ts < start) break;
+    const lane = a.level === 'crit' ? 'crit' : a.level === 'warn' ? 'warn' : 'info';
+    lanes[lane] += `<span class="tl-ev lv-${a.level}" style="left:${pos(a.ts)}%" title="${esc(fmtStamp(a.ts) + '  ' + a.title + (a.msg ? ' — ' + a.msg : ''))}"></span>`;
+  }
+  el.innerHTML =
+    `<div class="tl-lanes">` +
+    `<div class="tl-lane"><label>Alarms</label><div class="tl-track">${lanes.crit}</div></div>` +
+    `<div class="tl-lane"><label>Warnings</label><div class="tl-track">${lanes.warn}</div></div>` +
+    `<div class="tl-lane"><label>System</label><div class="tl-track">${lanes.info}</div></div>` +
+    `</div><div class="tl-axis"><label></label><div class="tl-scale">${ticks}<span class="tl-now">NOW</span></div></div>`;
+}
+function renderTimelines() {
+  if (S.route === 'home') renderTimeline($('#tl-home'));
+  if (S.route === 'live') renderTimeline($('#tl-live'));
+}
+
+function updateStatusBar() {
+  if (S.route === 'home') renderKpis();
+  const alarms = [...S.sensors.values()].filter(s => s.status !== 'ok').length;
+  $('#sb-records').textContent = `${S.total.toLocaleString()} records`;
+  const al = $('#sb-alarms');
+  al.textContent = alarms ? `${alarms} active alarm${alarms > 1 ? 's' : ''}` : 'No active alarms';
+  al.className = 'sb-item' + (alarms ? ' alarm' : '');
+  $('#sb-clock').textContent = fmtStamp(Date.now());
 }
 
 /* ---------------- sensor helpers ---------------- */
@@ -429,14 +545,17 @@ function renderHome() {
   $('#thumb-db-info').textContent = `${S.total.toLocaleString()} records · ${S.sensors.size} sensors · ${groups.size} groups`;
   const box = $('#thumb-db');
   box.innerHTML = sensors.length
-    ? sensors.slice(0, 6).map(s => `<div class="mini ${s.status}" style="--g:${groupColor(s.group)}"><span class="n">${esc(s.name)}</span><span class="v">${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small></span></div>`).join('')
+    ? sensors.slice(0, 6).map(s => `<div class="mini ${s.status}" style="--g:${groupColor(s.group)}" title="${esc(s.reason ? s.status.toUpperCase() + ': ' + s.reason : s.key)}">` +
+      `<div class="mh"><span class="n">${esc(s.name)}</span><span class="v">${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small></span></div>` +
+      `<canvas data-key="${esc(s.key)}"></canvas></div>`).join('')
     : '<div class="empty">Waiting for sensor data…</div>';
+  for (const cv of $$('canvas', box)) { const s = S.sensors.get(cv.dataset.key); if (s) drawSpark(cv, s.hist, s.status); }
 
   const info = $('#thumb-feed-info');
   if (demoCam()) info.textContent = 'Demo loop · ' + DemoFeed.label;
   else if (!hostOf(settings.camIp)) info.textContent = 'No camera IP set — open Settings';
   else info.textContent = 'ESP32-CAM · ' + hostOf(settings.camIp);
-  $$('#alert-feed time').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); });
+  $$('#alert-feed .ago').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); });
 }
 
 // Home thumbnail for a real camera uses snapshots (the ESP32-CAM usually allows only one stream client).
@@ -647,9 +766,9 @@ function frame(now) {
   DemoFeed.draw();
   const target = $(live ? '#live-canvas' : '#thumb-feed');
   target.getContext('2d').drawImage(DemoFeed.canvas, 0, 0, target.width, target.height);
-  if (live) $('#live-clock').textContent = new Date().toLocaleTimeString();
+  if (live) $('#live-clock').textContent = fmtHms(Date.now());
 }
-setInterval(() => { if (S.route === 'live' && !demoCam()) $('#live-clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+setInterval(() => { if (S.route === 'live' && !demoCam()) $('#live-clock').textContent = fmtHms(Date.now()); }, 1000);
 
 /* ---------------- database view ---------------- */
 function drawSpark(cv, data, status) {
@@ -691,7 +810,7 @@ function renderDb() {
         <div class="group-head"><span class="dot"></span><h3>${esc(groupLabel(g))}</h3><span class="cnt">${list.length} sensor${list.length > 1 ? 's' : ''}</span></div>
         <div class="tiles">${list.map(s => `
           <div class="tile" data-key="${esc(s.key)}">
-            <div class="tile-top"><span class="nm" title="${esc(s.key)}">${esc(s.name)}</span><span class="type-chip">${esc(typeLabel(s.type))}</span></div>
+            <div class="tile-top"><span class="nm" title="${esc(s.key)}">${esc(s.name)}</span>${typeLabel(s.type).toLowerCase() === s.name.toLowerCase() ? '' : `<span class="type-chip">${esc(typeLabel(s.type))}</span>`}</div>
             <div class="val"></div>
             <canvas></canvas>
             <div class="stats"></div>
@@ -708,7 +827,7 @@ function renderDb() {
     $('.val', tile).innerHTML = `${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small>`;
     $('.stats', tile).textContent = s.kind === 'bool'
       ? `active ${Math.round((s.sum / s.n) * 100)}% · ${fmtAgo(s.ts)}`
-      : `min ${fmtVal(s.min)} · avg ${fmtVal(s.sum / s.n)} · max ${fmtVal(s.max)}`;
+      : `${fmtVal(s.min)} – ${fmtVal(s.max)} · avg ${fmtVal(s.sum / s.n)}`;
     drawSpark($('canvas', tile), s.hist, s.status);
   }
 }
@@ -741,7 +860,7 @@ async function loadRecords() {
   });
   $('#rec-body').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td>${esc(new Date(r.ts).toLocaleString())}</td>
+      <td>${fmtStamp(r.ts)}</td>
       <td><span class="gtag" style="--g:${groupColor(r.group)}">${esc(groupLabel(r.group))}</span></td>
       <td>${esc(r.name)}</td>
       <td class="muted">${esc(typeLabel(r.type))}</td>
@@ -1070,6 +1189,23 @@ function bind() {
   };
   $('#t-cam').onclick = testCam;
   $('#t-notify').onclick = testSystemNotify;
+  // segmented buttons: timeline range (shared by Overview and Live View) and event-log filter
+  for (const seg of $$('.tl-range')) {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button[data-r]');
+      if (!b) return;
+      S.tlRange = +b.dataset.r;
+      for (const x of $$('.tl-range button')) x.classList.toggle('on', +x.dataset.r === S.tlRange);
+      renderTimelines();
+    });
+  }
+  $('#log-filter').addEventListener('click', e => {
+    const b = e.target.closest('button[data-f]');
+    if (!b) return;
+    S.logFilter = b.dataset.f;
+    for (const x of $$('#log-filter button')) x.classList.toggle('on', x === b);
+    renderAlertLists();
+  });
 
   window.addEventListener('resize', () => { if (S.route === 'db') { $('#groups').dataset.v = ''; renderDb(); } });
 }
@@ -1091,7 +1227,10 @@ async function init() {
   poll();
   setInterval(camHealth, 5000);
   camHealth();
-  setInterval(() => { if (S.route === 'home') $$('#alert-feed time').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); }); }, 15000);
+  setInterval(() => { if (S.route === 'home') $$('#alert-feed .ago').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); }); }, 15000);
+  renderShell();
+  setInterval(updateStatusBar, 1000);
+  setInterval(renderTimelines, 5000);
 }
 
 init().catch(err => {
