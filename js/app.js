@@ -50,6 +50,9 @@ function fmtVal(v, kind) {
   return a >= 1000 ? Math.round(v).toLocaleString() : String(Number(v.toFixed(a >= 100 ? 1 : 2)));
 }
 const fmtTime = ts => new Date(ts).toLocaleTimeString();
+const pad2 = n => String(n).padStart(2, '0');
+const fmtStamp = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+const fmtHms = ts => fmtStamp(ts).slice(11);
 function fmtAgo(ts) {
   const s = Math.round((Date.now() - ts) / 1000);
   if (s < 5) return 'just now';
@@ -221,6 +224,7 @@ function setStatus(which, state, detail) {
   pill.className = 'pill ' + ({ on: 'on', off: 'off', demo: 'demo-src' }[state] || '');
   const name = which === 'mcu' ? 'ESP32 sensor board' : 'ESP32-CAM';
   pill.title = `${name}: ${{ on: 'connected', off: 'unreachable' + (detail ? ' (' + detail + ')' : ''), idle: 'no IP set', demo: 'demo mode' }[state]}`;
+  if ($('#sb-devices')) renderShell();
   if (prev === state || state === 'demo' || state === 'idle' || prev === 'demo') return;
   if (state === 'off') {
     const where = which === 'mcu' ? mcuUrl() : hostOf(settings.camIp);
@@ -363,9 +367,19 @@ function updateBell() {
   b.textContent = S.unread > 99 ? '99+' : S.unread;
 }
 
+// Event log time: HH:MM:SS today, otherwise the date as well
+function fmtClock(ts) {
+  const d = new Date(ts), now = new Date();
+  const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return d.toDateString() === now.toDateString() ? t : `${d.toLocaleDateString([], { day: '2-digit', month: 'short' })} ${t.slice(0, 5)}`;
+}
+const LEVEL_TEXT = { info: 'INFO', ok: 'OK', warn: 'WARN', crit: 'ALARM' };
 function alertItems(list) {
-  if (!list.length) return '<li class="empty-li">No notifications yet.</li>';
-  return list.map(a => `<li class="lv-${a.level}"><div><div class="t">${esc(a.title)}</div><div class="m">${esc(a.msg)}</div></div><time title="${esc(new Date(a.ts).toLocaleString())}" data-ts="${a.ts}">${fmtAgo(a.ts)}</time></li>`).join('');
+  if (!list.length) return '<li class="empty-li">No events yet.</li>';
+  return list.map(a => `<li class="lv-${a.level}"><time title="${esc(new Date(a.ts).toLocaleString())}">${fmtClock(a.ts)}</time>` +
+    `<span class="lvl">${LEVEL_TEXT[a.level] || 'INFO'}</span>` +
+    `<div class="ev" title="${esc(a.title + (a.msg ? ' — ' + a.msg : ''))}"><span class="t">${esc(a.title)}</span><span class="m">${esc(a.msg)}</span></div>` +
+    `<span class="ago" data-ts="${a.ts}">${fmtAgo(a.ts)}</span></li>`).join('');
 }
 function renderAlertLists() {
   if (S.route === 'home') $('#alert-feed').innerHTML = alertItems(S.alerts.slice(0, 40));
@@ -404,7 +418,45 @@ function refreshViews() {
     if (S.route === 'live') renderLive();
     if (S.route === 'db') { renderDb(); if (S.page === 0) loadRecordsSoon(); }
     if (S.route === 'settings') renderSensorTable(false);
+    renderShell();
   });
+}
+
+/* ---------------- side panel & status bar ---------------- */
+function renderShell() {
+  const led = st => ({ on: 'on', off: 'off', demo: 'demo' }[st] || '');
+  const mcuSub = settings.demo ? 'Simulated data' : (hostOf(settings.mcuIp) ? mcuUrl().replace(/^https?:\/\//, '') : 'No IP set');
+  const camSub = demoCam() ? 'Simulated feed' : (hostOf(settings.camIp) || 'No IP set');
+  $('#sb-devices').innerHTML =
+    `<li><span class="led ${led(S.mcu)}"></span><span class="nm">Sensor board</span><span class="sub">${esc(mcuSub)}</span></li>` +
+    `<li><span class="led ${led(S.cam)}"></span><span class="nm">CAM-01</span><span class="sub">${esc(camSub)}</span></li>`;
+  const box = $('#sb-sensors');
+  if (box.dataset.v !== String(S.version)) {
+    const groups = byGroup();
+    box.innerHTML = groups.size ? [...groups].map(([g, list]) =>
+      `<div class="sb-grp" style="--g:${groupColor(g)}">${esc(groupLabel(g))}</div>` +
+      list.map(s => `<a class="sb-row" href="#/db" data-key="${esc(s.key)}" title="${esc(s.key)}"><span class="led"></span><span class="nm">${esc(s.name)}</span><span class="v"></span></a>`).join('')
+    ).join('') : '<div class="sb-empty">Waiting for data…</div>';
+    box.dataset.v = String(S.version);
+    $('#sb-count').textContent = S.sensors.size ? String(S.sensors.size) : '';
+  }
+  for (const row of $$('.sb-row', box)) {
+    const s = S.sensors.get(row.dataset.key);
+    if (!s) continue;
+    row.className = 'sb-row ' + s.status;
+    $('.led', row).className = 'led ' + (s.status === 'ok' ? 'on' : s.status);
+    $('.v', row).innerHTML = `${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small>`;
+  }
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  const alarms = [...S.sensors.values()].filter(s => s.status !== 'ok').length;
+  $('#sb-records').textContent = `${S.total.toLocaleString()} records`;
+  const al = $('#sb-alarms');
+  al.textContent = alarms ? `${alarms} active alarm${alarms > 1 ? 's' : ''}` : 'No active alarms';
+  al.className = 'sb-item' + (alarms ? ' alarm' : '');
+  $('#sb-clock').textContent = fmtStamp(Date.now());
 }
 
 /* ---------------- sensor helpers ---------------- */
@@ -429,14 +481,17 @@ function renderHome() {
   $('#thumb-db-info').textContent = `${S.total.toLocaleString()} records · ${S.sensors.size} sensors · ${groups.size} groups`;
   const box = $('#thumb-db');
   box.innerHTML = sensors.length
-    ? sensors.slice(0, 6).map(s => `<div class="mini ${s.status}" style="--g:${groupColor(s.group)}"><span class="n">${esc(s.name)}</span><span class="v">${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small></span></div>`).join('')
+    ? sensors.slice(0, 6).map(s => `<div class="mini ${s.status}" style="--g:${groupColor(s.group)}" title="${esc(s.reason ? s.status.toUpperCase() + ': ' + s.reason : s.key)}">` +
+      `<div class="mh"><span class="n">${esc(s.name)}</span><span class="v">${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small></span></div>` +
+      `<canvas data-key="${esc(s.key)}"></canvas></div>`).join('')
     : '<div class="empty">Waiting for sensor data…</div>';
+  for (const cv of $$('canvas', box)) { const s = S.sensors.get(cv.dataset.key); if (s) drawSpark(cv, s.hist, s.status); }
 
   const info = $('#thumb-feed-info');
   if (demoCam()) info.textContent = 'Demo loop · ' + DemoFeed.label;
   else if (!hostOf(settings.camIp)) info.textContent = 'No camera IP set — open Settings';
   else info.textContent = 'ESP32-CAM · ' + hostOf(settings.camIp);
-  $$('#alert-feed time').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); });
+  $$('#alert-feed .ago').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); });
 }
 
 // Home thumbnail for a real camera uses snapshots (the ESP32-CAM usually allows only one stream client).
@@ -647,9 +702,9 @@ function frame(now) {
   DemoFeed.draw();
   const target = $(live ? '#live-canvas' : '#thumb-feed');
   target.getContext('2d').drawImage(DemoFeed.canvas, 0, 0, target.width, target.height);
-  if (live) $('#live-clock').textContent = new Date().toLocaleTimeString();
+  if (live) $('#live-clock').textContent = fmtHms(Date.now());
 }
-setInterval(() => { if (S.route === 'live' && !demoCam()) $('#live-clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+setInterval(() => { if (S.route === 'live' && !demoCam()) $('#live-clock').textContent = fmtHms(Date.now()); }, 1000);
 
 /* ---------------- database view ---------------- */
 function drawSpark(cv, data, status) {
@@ -691,7 +746,7 @@ function renderDb() {
         <div class="group-head"><span class="dot"></span><h3>${esc(groupLabel(g))}</h3><span class="cnt">${list.length} sensor${list.length > 1 ? 's' : ''}</span></div>
         <div class="tiles">${list.map(s => `
           <div class="tile" data-key="${esc(s.key)}">
-            <div class="tile-top"><span class="nm" title="${esc(s.key)}">${esc(s.name)}</span><span class="type-chip">${esc(typeLabel(s.type))}</span></div>
+            <div class="tile-top"><span class="nm" title="${esc(s.key)}">${esc(s.name)}</span>${typeLabel(s.type).toLowerCase() === s.name.toLowerCase() ? '' : `<span class="type-chip">${esc(typeLabel(s.type))}</span>`}</div>
             <div class="val"></div>
             <canvas></canvas>
             <div class="stats"></div>
@@ -708,7 +763,7 @@ function renderDb() {
     $('.val', tile).innerHTML = `${fmtVal(s.value, s.kind)}<small>${esc(s.unit)}</small>`;
     $('.stats', tile).textContent = s.kind === 'bool'
       ? `active ${Math.round((s.sum / s.n) * 100)}% · ${fmtAgo(s.ts)}`
-      : `min ${fmtVal(s.min)} · avg ${fmtVal(s.sum / s.n)} · max ${fmtVal(s.max)}`;
+      : `${fmtVal(s.min)} – ${fmtVal(s.max)} · avg ${fmtVal(s.sum / s.n)}`;
     drawSpark($('canvas', tile), s.hist, s.status);
   }
 }
@@ -741,7 +796,7 @@ async function loadRecords() {
   });
   $('#rec-body').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td>${esc(new Date(r.ts).toLocaleString())}</td>
+      <td>${fmtStamp(r.ts)}</td>
       <td><span class="gtag" style="--g:${groupColor(r.group)}">${esc(groupLabel(r.group))}</span></td>
       <td>${esc(r.name)}</td>
       <td class="muted">${esc(typeLabel(r.type))}</td>
@@ -1091,7 +1146,9 @@ async function init() {
   poll();
   setInterval(camHealth, 5000);
   camHealth();
-  setInterval(() => { if (S.route === 'home') $$('#alert-feed time').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); }); }, 15000);
+  setInterval(() => { if (S.route === 'home') $$('#alert-feed .ago').forEach(t => { t.textContent = fmtAgo(+t.dataset.ts); }); }, 15000);
+  renderShell();
+  setInterval(updateStatusBar, 1000);
 }
 
 init().catch(err => {

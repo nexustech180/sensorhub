@@ -230,7 +230,7 @@ jobs:
             **Android:** download `GoldVarSensorHub.apk` on the phone, open it and allow "Install unknown apps" when asked. One file works on both 32-bit and 64-bit phones.
             **Windows:** download `GoldVarSensorHub-64bit.exe` (almost all PCs), or `GoldVarSensorHub-32bit.exe` for 32-bit Windows. Run it; no installation needed. If Windows SmartScreen warns, click "More info" → "Run anyway" (the app isn't code-signed).
             To check: Windows Settings → System → About → System type.
-            **Mac:** download `GoldVarSensorHub-mac.dmg` (Apple Silicon and Intel, macOS 12 or newer), open it and drag the app to Applications. The first time, macOS says it can't verify the app: click Done, then System Settings → Privacy & Security → **Open Anyway** (on macOS 14 and older: right-click the app → Open). The app isn't notarized by Apple.
+            **Mac:** download `GoldVarSensorHub-mac.dmg` (Apple Silicon and Intel, macOS 13 Ventura or newer), open it and drag the app to Applications. The first time, macOS says it can't verify the app: click Done, then System Settings → Privacy & Security → **Open Anyway** (on macOS 14 and older: right-click the app → Open). The app isn't notarized by Apple.
             **Updating from v0.1.0 on Android:** uninstall the old app once first (the signing key changed); later versions install over it.
 
             Connect the phone or PC to the same WiFi or hotspot as the ESP32, turn Demo mode off in Settings and enter the IP shown on the Mega's LCD (page 4).

@@ -8,7 +8,7 @@ A dashboard app for the GOLD-VAR system: an **ESP32 gateway** (or sensor board) 
 
 **Windows:** download **`GoldVarSensorHub-64bit.exe`** (almost all PCs) or **`GoldVarSensorHub-32bit.exe`** (32-bit Windows) from **Releases** and run it; no installation is needed. The 32-bit build uses Electron 43, the newest Electron with 32-bit Windows support. If SmartScreen warns, click **More info → Run anyway** (the app isn't code-signed). For development you can also double-click `start.bat`, which opens the dashboard at http://localhost:8080.
 
-**Mac:** download **`GoldVarSensorHub-mac.dmg`** (one file for Apple Silicon and Intel, macOS 12 or newer), open it and drag the app into Applications. The app is signed ad-hoc but not notarized by Apple, so the first time macOS says it can't verify it: click Done, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 or older: right-click the app → Open). If macOS ever reports the app as damaged, run `xattr -dr com.apple.quarantine "/Applications/Gold Var Sensor Hub.app"` in Terminal. To remove the warning for everyone, the app needs an Apple Developer ID (paid Apple Developer Program) and notarization; the build already has the hooks for that.
+**Mac:** download **`GoldVarSensorHub-mac.dmg`** (one file for Apple Silicon and Intel, macOS 13 Ventura or newer), open it and drag the app into Applications. The app is signed ad-hoc but not notarized by Apple, so the first time macOS says it can't verify it: click Done, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 or older: right-click the app → Open). If macOS ever reports the app as damaged, run `xattr -dr com.apple.quarantine "/Applications/Gold Var Sensor Hub.app"` in Terminal. To remove the warning for everyone, the app needs an Apple Developer ID (paid Apple Developer Program) and notarization; the build already has the hooks for that.
 
 The app starts in **Demo mode**, so you can see it working with no hardware.
 
@@ -147,7 +147,7 @@ To add a sensor, add another `"key": value` to the firmware's JSON. It will appe
 
 - **Random**: realistic drifting values with occasional spikes (an object comes close, a loud noise, muddy water, a pH swing).
 - **Pre-coded script**: a fixed, repeating scenario that runs through every warning and critical alert.
-- **Video**: a built-in simulated underwater camera feed, which gets murky when turbidity rises. You can also choose your own video file or URL to loop.
+- **Video**: a built-in simulated night-vision camera view of a riverbank (someone walks past now and then); the river turns muddy when turbidity rises. You can also choose your own video file or URL to loop.
 
 ## Signing the Android app
 
